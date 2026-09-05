@@ -1,10 +1,36 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { generateScenarioCatalog, normalizeJourneyName, priorityScore } from "../../scenarios/src/catalog.js";
+import { selectFailurePatterns } from "../../scenarios/src/failure-patterns.js";
 
 const IGNORE_DIRS = new Set([".git", "node_modules", "dist", "build", "coverage", ".next", ".nuxt", ".turbo"]);
-const TEXT_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".json", ".md", ".html", ".vue", ".svelte", ".feature", ".yml", ".yaml"]);
+const TEXT_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".json", ".md", ".html", ".vue", ".svelte", ".feature", ".yml", ".yaml", ".css", ".scss", ".less"]);
 const TEST_PATTERNS = [/\.test\.[cm]?[jt]sx?$/i, /\.spec\.[cm]?[jt]sx?$/i, /(^|\/)tests?\//i, /(^|\/)e2e\//i, /\.feature$/i];
+
+const RISK_SIGNAL_PATTERNS = Object.freeze([
+  ["async-network", /\b(fetch|axios|request|graphql|trpc|mutation|query)\b/gi],
+  ["optimistic-ui", /\b(optimistic|onMutate|rollback|pendingMutation)\b/gi],
+  ["auth-session", /\b(session|accessToken|refreshToken|oauth|openid|reauth|401|authentication)\b/gi],
+  ["browser-persistence", /\b(localStorage|sessionStorage|indexedDB)\b/gi],
+  ["multi-context", /\b(BroadcastChannel|postMessage|window\.open|storageevent|addEventListener\(["']storage)/gi],
+  ["offline-capable", /\b(serviceWorker|navigator\.onLine|offline|onlineevent|backgroundSync)\b/gi],
+  ["external-redirect", /\b(redirect|callback|window\.location|location\.href|3ds|otp|verification)\b/gi],
+  ["feature-flags", /\b(feature.?flag|experiment|variant|cohort|launchdarkly|unleash|split\.io)\b/gi],
+  ["internationalization", /\b(i18n|useTranslation|translation|locale|Intl\.)\b/gi],
+  ["rtl", /\b(rtl|dir=["']rtl|direction\s*:\s*rtl)\b/gi],
+  ["date-time", /\b(timezone|timeZone|Intl\.DateTimeFormat|Date\.UTC|new Date\(|expiresAt|expiry)\b/gi],
+  ["file-upload", /\b(FormData|multipart|dropzone|upload|type=["']file["'])\b/gi],
+  ["virtualized-list", /\b(react-window|react-virtual|virtualized|windowing)\b/gi],
+  ["progressive-list", /\b(IntersectionObserver|infinite.?scroll|loadMore|nextPage|pageParam|cursor)\b/gi],
+  ["modal-overlay", /\b(dialog|modal|drawer|popover|sheet)\b/gi],
+  ["occluding-overlay", /\b(position\s*:\s*(fixed|sticky)|sticky|bottom.?sheet|overlay)\b/gi],
+  ["realtime", /\b(WebSocket|EventSource|socket\.io|realtime|subscribe|subscription)\b/gi],
+  ["client-cache", /\b(react-query|tanstack|swr|apollo|invalidateQueries|queryClient|cache)\b/gi],
+  ["device-permission", /\b(navigator\.permissions|getUserMedia|geolocation|Notification\.requestPermission|clipboard)\b/gi],
+  ["search-filter", /\b(search|filter|facet|sortBy|searchParams|queryParams)\b/gi],
+  ["complex-form", /\b(useForm|formik|react-hook-form|autocomplete|validation|register\()\b/gi],
+  ["draft-editing", /\b(autosave|autoSave|draft|beforeunload|isDirty|dirtyFields)\b/gi]
+]);
 
 function uniq(values) {
   return [...new Set(values.filter(Boolean))];
@@ -72,6 +98,19 @@ function detectFrameworks(packageJson, files) {
   };
 }
 
+function countMatches(corpus, regex) {
+  const flags = regex.flags.includes("g") ? regex.flags : `${regex.flags}g`;
+  const matches = corpus.match(new RegExp(regex.source, flags));
+  return matches ? matches.length : 0;
+}
+
+function detectRiskSignals(corpus) {
+  return RISK_SIGNAL_PATTERNS
+    .map(([id, regex]) => ({ id, hits: countMatches(corpus, regex) }))
+    .filter((signal) => signal.hits > 0)
+    .sort((a, b) => b.hits - a.hits);
+}
+
 function discoverJourneyCandidates(corpus) {
   const patterns = [
     ["checkout", /checkout|payment|cart|purchase|order confirmation/i],
@@ -101,13 +140,16 @@ export async function scanRepository(rootDir = process.cwd()) {
 
   const testFiles = files.filter((file) => TEST_PATTERNS.some((regex) => regex.test(file)));
   const routeLikeFiles = files.filter((file) => /route|router|page|screen|view|app\.[jt]sx?|main\.[jt]sx?/i.test(file));
-  const corpusFiles = uniq([...testFiles, ...routeLikeFiles]).slice(0, 250);
-  const chunks = await Promise.all(corpusFiles.map((file) => safeRead(path.join(root, file))));
-  const corpus = chunks.join("\n");
+  const journeyCorpusFiles = uniq([...testFiles, ...routeLikeFiles]).slice(0, 250);
+  const riskCorpusFiles = files.filter((file) => !/package-lock|yarn\.lock|pnpm-lock/i.test(file)).slice(0, 600);
+  const journeyChunks = await Promise.all(journeyCorpusFiles.map((file) => safeRead(path.join(root, file))));
+  const riskChunks = await Promise.all(riskCorpusFiles.map((file) => safeRead(path.join(root, file))));
+  const journeyCorpus = journeyChunks.join("\n");
+  const riskCorpus = riskChunks.join("\n");
   const frameworks = detectFrameworks(packageJson, files);
 
   return {
-    schema: "ui-iceberg-scan-v0.1",
+    schema: "ui-iceberg-scan-v0.2",
     root,
     packageName: packageJson?.name || path.basename(root),
     frameworks,
@@ -117,7 +159,12 @@ export async function scanRepository(rootDir = process.cwd()) {
       routeLikeFiles: routeLikeFiles.length
     },
     testFiles,
-    candidateJourneys: discoverJourneyCandidates(corpus),
+    candidateJourneys: discoverJourneyCandidates(journeyCorpus),
+    riskSignals: detectRiskSignals(riskCorpus),
+    hardeningPolicy: {
+      source: "generalized-industry-patterns",
+      statement: "Risk signals select additional scenarios from a bounded failure-pattern library. A matched pattern is a test hypothesis, not proof that the defect exists."
+    },
     caveat: "Static discovery is a candidate map. It does not establish runtime or human journey coverage."
   };
 }
@@ -158,10 +205,27 @@ function mapScenarioEvidence(scenario, testCorpus) {
   return { state, score: Number(score.toFixed(2)), files: matches.slice(0, 5) };
 }
 
+function combineScenarios(base, extra, journey) {
+  const seen = new Set();
+  return [...base, ...extra]
+    .map((scenario, index) => ({ ...scenario, journey, rank: scenario.rank || index + 1 }))
+    .filter((scenario) => {
+      if (seen.has(scenario.id)) return false;
+      seen.add(scenario.id);
+      return true;
+    })
+    .sort((a, b) => {
+      const priority = priorityScore(b.priority) - priorityScore(a.priority);
+      return priority || a.rank - b.rank;
+    });
+}
+
 export async function analyzeJourneyGaps(rootDir, journeyName, options = {}) {
   const scan = await scanRepository(rootDir);
   const normalized = normalizeJourneyName(journeyName);
-  const scenarios = generateScenarioCatalog(normalized, options);
+  const base = generateScenarioCatalog(normalized, options);
+  const hardened = selectFailurePatterns(scan.riskSignals, { limit: Number.isFinite(options.patternLimit) ? options.patternLimit : 6 });
+  const scenarios = combineScenarios(base, hardened, normalized);
   const corpus = await buildTestCorpus(scan.root, scan.testFiles);
   const mapped = scenarios.map((scenario) => ({
     ...scenario,
@@ -184,26 +248,37 @@ export async function analyzeJourneyGaps(rootDir, journeyName, options = {}) {
     });
 
   return {
-    schema: "ui-iceberg-journey-gaps-v0.1",
+    schema: "ui-iceberg-journey-gaps-v0.2",
     journey: normalized,
     repository: scan.packageName,
     existingTests: scan.counts.tests,
+    riskSignals: scan.riskSignals,
+    hardenedScenarioCount: hardened.length,
     scenarios: mapped,
     summary,
     gaps,
     testNext: gaps[0] || null,
     evidencePolicy: {
       status: "candidate mapping",
-      statement: "Static lexical overlap can identify likely test evidence, but cannot certify scenario coverage. Runtime replay or explicit test linkage is required for strong verification."
+      statement: "Static lexical overlap can identify likely test evidence, but cannot certify scenario coverage. Runtime replay or explicit test linkage is required for strong verification.",
+      hardening: scan.hardeningPolicy.statement
     }
   };
 }
 
 export function generateScenarios(journeyName, options = {}) {
+  const normalized = normalizeJourneyName(journeyName);
+  const base = generateScenarioCatalog(normalized, options);
+  const hardened = selectFailurePatterns(options.riskSignals || [], { limit: Number.isFinite(options.patternLimit) ? options.patternLimit : 6 });
   return {
-    schema: "ui-iceberg-scenarios-v0.1",
-    journey: normalizeJourneyName(journeyName),
-    scenarios: generateScenarioCatalog(journeyName, options),
+    schema: "ui-iceberg-scenarios-v0.2",
+    journey: normalized,
+    scenarios: combineScenarios(base, hardened, normalized),
+    hardening: {
+      selected: hardened.length,
+      source: "generalized-industry-patterns",
+      boundary: "Selected historical failure patterns are hypotheses to test, not evidence that the repository contains those defects."
+    },
     principle: "Generate the smallest high-value scenario set first; do not confuse scenario count with journey assurance."
   };
 }
