@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { startCheckout, completeHappyPath } from "../src/checkout-state.js";
+import { startCheckout, completeHappyPath } from "../src/checkout-model.js";
 
 test("checkout happy path reaches confirmation", () => {
+  // success complete confirmation
   const initial = startCheckout(["demo-item"]);
   const completed = completeHappyPath(initial);
 
