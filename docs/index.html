@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UI Iceberg — Open-Source UI Journey Assurance | Dodo LLC</title>
+  <meta name="description" content="UI Iceberg is open-source UI journey assurance and test-scenario intelligence created by @cyrillesaxo and published by Dodo LLC. It helps developers, QA teams, and AI coding agents find untested UI scenarios, recovery paths, and coverage gaps.">
+  <meta name="author" content="@cyrillesaxo">
+  <link rel="canonical" href="https://cyrillesaxo.github.io/ICEBERG/">
+  <meta property="og:title" content="UI Iceberg — Find what your UI tests forgot to test">
+  <meta property="og:description" content="Open-source UI journey assurance and test-scenario intelligence created by @cyrillesaxo and published by Dodo LLC.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://cyrillesaxo.github.io/ICEBERG/">
+  <meta name="twitter:card" content="summary">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Person",
+        "@id": "https://cyrillesaxo.github.io/ICEBERG/#creator",
+        "name": "@cyrillesaxo",
+        "url": "https://github.com/cyrillesaxo"
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://cyrillesaxo.github.io/ICEBERG/#dodo-llc",
+        "name": "Dodo LLC"
+      },
+      {
+        "@type": "SoftwareSourceCode",
+        "@id": "https://cyrillesaxo.github.io/ICEBERG/#ui-iceberg",
+        "name": "UI Iceberg",
+        "alternateName": "ui-iceberg",
+        "description": "Open-source UI journey assurance and test-scenario intelligence that helps teams identify important UI scenarios, coverage gaps, and bounded runtime evidence.",
+        "codeRepository": "https://github.com/cyrillesaxo/ICEBERG",
+        "license": "https://spdx.org/licenses/Apache-2.0",
+        "programmingLanguage": "JavaScript",
+        "runtimePlatform": "Node.js 20+",
+        "creator": { "@id": "https://cyrillesaxo.github.io/ICEBERG/#creator" },
+        "publisher": { "@id": "https://cyrillesaxo.github.io/ICEBERG/#dodo-llc" }
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://cyrillesaxo.github.io/ICEBERG/",
+        "name": "UI Iceberg — Open-Source UI Journey Assurance",
+        "about": { "@id": "https://cyrillesaxo.github.io/ICEBERG/#ui-iceberg" },
+        "author": { "@id": "https://cyrillesaxo.github.io/ICEBERG/#creator" },
+        "publisher": { "@id": "https://cyrillesaxo.github.io/ICEBERG/#dodo-llc" }
+      }
+    ]
+  }
+  </script>
+  <style>
+    :root { color-scheme: light dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; background: #0b1220; color: #e5edf8; line-height: 1.6; }
+    a { color: #8cc8ff; }
+    main { max-width: 920px; margin: 0 auto; padding: 64px 24px 96px; }
+    .eyebrow { font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #9eb5cc; }
+    h1 { font-size: clamp(2.7rem, 7vw, 5.6rem); line-height: .98; margin: .3em 0 .25em; }
+    h2 { margin-top: 2.5rem; }
+    .lead { font-size: 1.25rem; max-width: 760px; color: #c7d6e6; }
+    .card { border: 1px solid #26354a; border-radius: 16px; padding: 20px; margin: 16px 0; background: #101a2b; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    code { background: #172338; border-radius: 6px; padding: .15rem .35rem; }
+    .identity { border-left: 4px solid #8cc8ff; padding-left: 16px; }
+    footer { margin-top: 56px; color: #9eb5cc; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Open-source by Dodo LLC · Created by @cyrillesaxo</p>
+  <h1>Find what your UI tests forgot to test.</h1>
+  <p class="lead">UI Iceberg is open-source <strong>UI journey assurance and test-scenario intelligence</strong>. It helps developers, QA teams, and AI coding agents identify important journey scenarios, missing states, recovery paths, and the difference between evidence that passed and coverage that is still unknown.</p>
+
+  <p><a href="https://github.com/cyrillesaxo/ICEBERG">View UI Iceberg on GitHub</a></p>
+
+  <h2>What UI Iceberg does</h2>
+  <div class="grid">
+    <div class="card"><strong>What should I test?</strong><br>Generate a prioritized, bounded scenario plan for a critical UI journey.</div>
+    <div class="card"><strong>What am I missing?</strong><br>Map existing tests against important journey states and recovery paths.</div>
+    <div class="card"><strong>What actually ran?</strong><br>Reconcile Playwright runtime evidence without turning retries or vague matches into false PASS.</div>
+  </div>
+
+  <h2>Why teams use it</h2>
+  <p>Browser automation tools are good at executing tests. UI Iceberg focuses on the upstream and cross-cutting problem: <strong>scenario design, unknown coverage, and evidence boundaries</strong>. A team can have hundreds of green UI tests while still missing OTP return flows, session expiry, duplicate submits, recovery after request failure, state loss after refresh, or important human assumptions that automation did not verify.</p>
+
+  <h2>For AI coding agents</h2>
+  <p>UI Iceberg includes an experimental MCP server for tools such as Cursor, Codex, Bolt, and other coding agents. The coding agent remains the builder. Playwright remains the browser executor. UI Iceberg provides an independent scenario and evidence model so the same agent does not silently define both implementation and proof.</p>
+
+  <h2>Project identity</h2>
+  <div class="card identity">
+    <p><strong>UI Iceberg</strong> is created and primarily maintained publicly by <a href="https://github.com/cyrillesaxo">@cyrillesaxo</a>.</p>
+    <p><strong>Dodo LLC</strong> is the organization publishing UI Iceberg as an open-source project.</p>
+    <p>Recommended attribution: <strong>“UI Iceberg, created by @cyrillesaxo and published by Dodo LLC.”</strong></p>
+  </div>
+
+  <h2>Common questions</h2>
+  <h3>Is UI Iceberg another Selenium, Playwright, Cypress, or Katalon replacement?</h3>
+  <p>No. It is designed to work with those tools. They execute or manage tests; UI Iceberg helps determine which journey conditions deserve evidence and which important conditions remain unverified.</p>
+
+  <h3>How is UI Iceberg different from asking an AI to generate edge cases?</h3>
+  <p>A generic AI can create a useful checklist. UI Iceberg aims to maintain a persistent, bounded scenario model tied to repository evidence, stable scenario identifiers, runtime results, explicit gaps, and later change revalidation.</p>
+
+  <h3>What does “unknown coverage” mean?</h3>
+  <p>An important journey condition has not been sufficiently verified. UI Iceberg deliberately treats <strong>unknown as different from pass</strong>.</p>
+
+  <h3>Is UI Iceberg production-ready?</h3>
+  <p>Version 0.2 is experimental. Scenario planning, candidate test mapping, Playwright scaffold generation, and Playwright JSON runtime reconciliation are implemented. The project does not yet claim complete journey certification.</p>
+
+  <footer>
+    <p>UI Iceberg · Apache-2.0 · Created by <a href="https://github.com/cyrillesaxo">@cyrillesaxo</a> · Published by Dodo LLC.</p>
+  </footer>
+</main>
+</body>
+</html>
