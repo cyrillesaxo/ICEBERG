@@ -29,7 +29,10 @@ function chooseJourneyStatus(combined) {
 
 export async function verifyJourneyWithPlaywright(rootDir, journeyName, reportPath, options = {}) {
   if (!reportPath) throw new Error("A Playwright JSON report is required. Pass --report=<path>.");
-  const staticReport = await analyzeJourneyGaps(rootDir, journeyName, { limit: options.limit });
+  const staticReport = await analyzeJourneyGaps(rootDir, journeyName, {
+    limit: options.limit,
+    patternLimit: options.patternLimit
+  });
   const runtimeReport = await loadPlaywrightJsonReport(reportPath, rootDir);
   const runtimeMap = mapPlaywrightRuntimeEvidence(staticReport.scenarios, runtimeReport);
   const byId = new Map(runtimeMap.mapped.map((item) => [item.scenarioId, item]));
@@ -60,6 +63,9 @@ export async function verifyJourneyWithPlaywright(rootDir, journeyName, reportPa
     status: chooseJourneyStatus(combined),
     existingTests: staticReport.existingTests,
     runtimeTestsObserved: runtimeReport.tests.length,
+    riskSignals: staticReport.riskSignals,
+    testEvidenceRisks: staticReport.testEvidenceRisks,
+    hardenedScenarioCount: staticReport.hardenedScenarioCount,
     staticSummary: staticReport.summary,
     runtimeSummary: runtimeMap.summary,
     scenarios: combined,
@@ -72,6 +78,8 @@ export async function verifyJourneyWithPlaywright(rootDir, journeyName, reportPa
     },
     evidencePolicy: {
       static: staticReport.evidencePolicy.statement,
+      hardening: staticReport.evidencePolicy.hardening,
+      testEvidence: staticReport.evidencePolicy.testEvidence,
       runtime: runtimeReport.caveat,
       explicitLink: runtimeMap.policy.strongLink,
       flaky: runtimeMap.policy.flaky,
