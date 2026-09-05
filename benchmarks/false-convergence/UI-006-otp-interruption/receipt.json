@@ -5,10 +5,9 @@
   "run_date": "2026-09-05",
   "repository": "cyrillesaxo/ICEBERG",
   "branch": "bootstrap-v0.1",
-  "tested_commit": "076ad32263866c36aeaa0f4027ef35cb62317621",
+  "tested_commit": "4f04464d5d2aad8d1d034439d386f98e939791e2",
   "github_actions": {
-    "run_id": 33975572484,
-    "job_id": 101331546791,
+    "run_id": 33975712760,
     "conclusion": "success",
     "automated_tests": 29,
     "automated_tests_passed": 29,
