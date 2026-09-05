@@ -1,0 +1,96 @@
+profile_id: PROFILE-MATURE-TEST-PRIMITIVES-0.1.0
+packspec: UI-ICEBERG@0.7.2
+rule: Generalize mature product primitives; never copy proprietary implementation details or promote vendor behavior
+  to normative UI truth.
+primitives:
+- id: CP01
+  source: Playwright
+  source_primitive: actionability/auto-waiting
+  generalized: InteractionReadinessVector
+  maps_to:
+  - C07_INTERACTION_STATE
+  - I-INTERACTION-READINESS
+  - M30_INTERACTION_READINESS
+  does_not_establish: task meaning, user intent, cognitive ease
+- id: CP02
+  source: Playwright
+  source_primitive: user-facing locators / explicit test id
+  generalized: SemanticTargetIdentity
+  maps_to:
+  - C08_SEMANTIC_MAPPING
+  - I-SEMANTIC-TARGET-CONTINUITY
+  - M36_LOCATOR_SEMANTIC_SUBSTITUTION
+  does_not_establish: semantic equivalence solely from selector resolution
+- id: CP03
+  source: Storybook
+  source_primitive: story as explicit rendered component state
+  generalized: StateManifest + StateMissSet
+  maps_to:
+  - C07_INTERACTION_STATE
+  - M31_STATE_SURFACE
+  does_not_establish: completeness of undeclared required states
+- id: CP04
+  source: Cypress
+  source_primitive: UI Coverage tested interactive elements / observed interactive elements
+  generalized: SurfaceInteractionCoverage
+  maps_to:
+  - M32_SURFACE_INTERACTION_COVERAGE
+  - Q68_SURFACE_INTERACTION_COVERAGE
+  does_not_establish: task/human/semantic convergence
+- id: CP05
+  source: Cypress
+  source_primitive: test retries / flaky detection
+  generalized: ProbabilisticStabilityState
+  maps_to:
+  - I-NONDETERMINISM-NOT-PASS
+  - M33_STABILITY_RETRY
+  does_not_establish: root cause of flakiness
+- id: CP06
+  source: Chromatic
+  source_primitive: TurboSnap dependency tracing
+  generalized: ReactivationImpactGraph
+  maps_to:
+  - TERM
+  - M34_REACTIVATION_IMPACT
+  does_not_establish: safe pruning when dependency impact is unknown/global
+- id: CP07
+  source: Applitools
+  source_primitive: match regions / region-specific comparison modes
+  generalized: VisualOracleRegionPolicy
+  maps_to:
+  - I-REGION-ORACLE-AUTHORITY
+  - M35_VISUAL_REGION_ORACLE
+  does_not_establish: semantic correctness from visual similarity
+- id: CP08
+  source: FullStory
+  source_primitive: frustration signals
+  generalized: BehavioralFrictionWitness
+  maps_to:
+  - W-FRICTION-SIGNAL
+  - M37_FIELD_FRICTION_CAUSAL
+  does_not_establish: user frustration intent or causal root cause
+- id: CP09
+  source: mabl
+  source_primitive: auto-heal/find confidence/element history
+  generalized: LocatorSubstitutionProposal
+  maps_to:
+  - I-LOCATOR-SUBSTITUTION-SEMANTIC
+  - M36_LOCATOR_SEMANTIC_SUBSTITUTION
+  does_not_establish: same semantic entity from similarity/confidence alone
+- id: CP10
+  source: cross-tool governance
+  source_primitive: baseline/locator/test mutation history
+  generalized: TestMutationReceipt + BaselineAuthorityReceipt
+  maps_to:
+  - I-TEST-MUTATION-AUDITABILITY
+  - Q73_BASELINE_AUTHORITY_RECEIPT
+  - Q76_TEST_MUTATION_AUDIT
+  does_not_establish: authorized semantic change without authority
+- id: CP11
+  source: Playwright trace + analogous replay systems
+  source_primitive: timeline/snapshot/network/runtime trace
+  generalized: CausalReplayTrace
+  maps_to:
+  - W-CAUSAL-REPLAY
+  - M39_CAUSAL_REPLAY
+  does_not_establish: causality from trace detail alone
