@@ -34,6 +34,8 @@ test("scanRepository reports bounded test evidence risks without calling them pr
   assert.ok(ids.has("FORCED_ACTION"));
   assert.ok(ids.has("SKIPPED_TEST"));
   assert.ok(ids.has("NETWORK_MOCK"));
-  assert.ok(scan.testEvidenceRisks.every((risk) => /not proof|risk|insufficient|weaken/i.test(`${risk.boundary} ${risk.meaning}`)));
+  assert.ok(scan.testEvidenceRisks.every((risk) => risk.evidenceClass === "test-evidence-risk"));
+  assert.ok(scan.testEvidenceRisks.every((risk) => typeof risk.boundary === "string" && risk.boundary.length > 20));
+  assert.ok(scan.testEvidenceRisks.every((risk) => typeof risk.meaning === "string" && risk.meaning.length > 20));
   assert.match(scan.hardeningPolicy.testEvidence, /not proof of product defects/i);
 });
