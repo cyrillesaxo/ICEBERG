@@ -38,6 +38,18 @@ function runtimeIcon(state) {
   return "·";
 }
 
+function printEvidenceRisks(risks = []) {
+  console.log("\nTest evidence risks");
+  if (!risks.length) {
+    console.log("  No known deceptive-green test patterns detected in the bounded scan.");
+    return;
+  }
+  for (const risk of risks.slice(0, 8)) {
+    console.log(`  • [${risk.severity.toUpperCase()}] ${risk.id} (${risk.hits} hit${risk.hits === 1 ? "" : "s"})`);
+    console.log(`    ${risk.meaning}`);
+  }
+}
+
 function printScan(result) {
   console.log(`UI ICEBERG\nRepository scan\n${"─".repeat(44)}`);
   console.log(`Project              ${result.packageName}`);
@@ -49,9 +61,11 @@ function printScan(result) {
   if (!result.candidateJourneys.length) console.log("  No common journey family confidently detected from static source.");
   for (const journey of result.candidateJourneys.slice(0, 8)) console.log(`  • ${journey.name} (${journey.hits} signals)`);
   console.log("\nImplementation risk fingerprint");
-  if (!result.riskSignals?.length) console.log("  No hardening signals detected from the bounded static scan.");
+  if (!result.riskSignals?.length) console.log("  No hardening signals detected from the bounded implementation scan.");
   for (const signal of (result.riskSignals || []).slice(0, 10)) console.log(`  • ${signal.id} (${signal.hits} signals)`);
+  printEvidenceRisks(result.testEvidenceRisks);
   console.log(`\nHardening note: ${result.hardeningPolicy?.statement || "No repository-specific hardening policy available."}`);
+  if (result.hardeningPolicy?.testEvidence) console.log(`Evidence-risk note: ${result.hardeningPolicy.testEvidence}`);
   console.log(`Evidence note: ${result.caveat}`);
 }
 
@@ -72,6 +86,7 @@ function printGaps(result) {
   console.log(`Existing tests        ${result.existingTests}`);
   console.log(`Important scenarios   ${result.scenarios.length}`);
   console.log(`Repo-risk scenarios   ${result.hardenedScenarioCount || 0}`);
+  console.log(`Evidence risks        ${result.testEvidenceRisks?.length || 0}`);
   console.log(`Candidate covered     ${result.summary["candidate-covered"]}`);
   console.log(`Partial               ${result.summary.partial}`);
   console.log(`Missing               ${result.summary.missing}`);
@@ -90,8 +105,13 @@ function printGaps(result) {
     console.log(`\nTEST NEXT\n${result.testNext.title}`);
     console.log(`Why: ${result.testNext.why}`);
   }
+  if (result.testEvidenceRisks?.length) {
+    console.log("\nEVIDENCE TO REVIEW");
+    for (const risk of result.testEvidenceRisks.slice(0, 4)) console.log(`  • [${risk.severity.toUpperCase()}] ${risk.id}: ${risk.meaning}`);
+  }
   console.log(`\nEvidence note: ${result.evidencePolicy.statement}`);
   if (result.evidencePolicy.hardening) console.log(`Hardening note: ${result.evidencePolicy.hardening}`);
+  if (result.evidencePolicy.testEvidence) console.log(`Evidence-risk note: ${result.evidencePolicy.testEvidence}`);
 }
 
 function printVerify(result) {
