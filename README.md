@@ -247,7 +247,7 @@ On the latest recorded successful benchmark run, the conventional happy-path tes
 
 ## Status
 
-**v0.2 experimental.** Scenario planning, repository-aware hardening, journey archetypes, static candidate mapping, test-evidence risk detection, contextual **TEST NEXT**, Playwright scaffold generation, and Playwright JSON runtime reconciliation are implemented. This is not release certification or a claim of full journey correctness.
+**v0.2 experimental.** Scenario planning, repository-aware hardening, journey archetypes, static candidate mapping, test-evidence risk detection, contextual **TEST NEXT**, Playwright scaffold generation, and Playwright JSON runtime reconciliation are implemented. The hardening model and its evidence/provenance boundaries are documented in [docs/HARDENING.md](docs/HARDENING.md). This is not release certification or a claim of full journey correctness.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
 
