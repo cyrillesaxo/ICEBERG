@@ -1,0 +1,46 @@
+{
+  "schema": "ui-iceberg-build-validation-v0.7.2",
+  "version": "0.7.2",
+  "yaml_round_trip": "PASS",
+  "json_schemas": "PASS",
+  "counts": {
+    "cmust": 105,
+    "invariants": 34,
+    "witness_channels": 38,
+    "matrix_views": 39,
+    "deceptive_witnesses": 72,
+    "metrics": 83,
+    "quality_gates": 78,
+    "required_artifacts": 75,
+    "tool_adapters": 17,
+    "competitive_primitives": 11,
+    "research_concept_rows": 94,
+    "domain_theory_families": 21
+  },
+  "fixed_taxonomies": {
+    "G12": 12,
+    "UI12": 12,
+    "UX12": 12,
+    "quality_planes": 16
+  },
+  "notes": [
+    "No universal actionability, flake, visual, cognitive or agency threshold added.",
+    "Competitor sources are operational priors, not normative UI authority.",
+    "Phase 1/2 semantic contracts preserved."
+  ],
+  "document_qa": {
+    "docx_render_pages": 4,
+    "docx_visual_review": "PASS",
+    "pdf_render_pages": 4,
+    "pdf_visual_review": "PASS",
+    "pdf_preflight": "PASS"
+  },
+  "final_checks": [
+    "YAML IDs unique",
+    "JSON schemas Draft 2020-12 valid",
+    "G1-G12/UI-12/UX-12 unchanged at 12 each",
+    "QP01-QP16 unchanged",
+    "No clipping/overlap/missing glyphs observed in DOCX/PDF render",
+    "No stale v0.7.1 artifact references except supersedes/compatibility lineage"
+  ]
+}

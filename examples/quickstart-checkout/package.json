@@ -1,0 +1,11 @@
+{
+  "name": "ui-iceberg-quickstart-checkout",
+  "private": true,
+  "description": "Deterministic fixture used by the UI Iceberg 60-second quick start.",
+  "dependencies": {
+    "react": "0.0.0-demo"
+  },
+  "devDependencies": {
+    "@playwright/test": "0.0.0-demo"
+  }
+}

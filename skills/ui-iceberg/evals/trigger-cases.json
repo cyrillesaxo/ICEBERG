@@ -1,0 +1,78 @@
+{
+  "schema": "agent-skill-trigger-evals-v0.1",
+  "skill": "ui-iceberg",
+  "cases": [
+    {
+      "id": "positive-hidden-ui-bugs",
+      "prompt": "Use ICEBERG to find hidden UI bugs and constraint failures in this repository, then tell me what to fix first.",
+      "should_activate": true,
+      "reason": "Direct hidden-constraint and UI journey assurance request."
+    },
+    {
+      "id": "positive-green-tests",
+      "prompt": "All our Playwright tests are green, but customers still lose progress during checkout. What did we forget to test?",
+      "should_activate": true,
+      "reason": "False-convergence and missing-journey-evidence problem."
+    },
+    {
+      "id": "positive-navigation-consistency",
+      "prompt": "The mobile navigation is inconsistent across pages. Find the shared primitive causing it, fix it, and verify the regression.",
+      "should_activate": true,
+      "reason": "Cross-page semantic/geometry/ownership invariant plus repair and verification."
+    },
+    {
+      "id": "positive-test-next",
+      "prompt": "Scan this UI repository and tell me the highest-value scenario to test next.",
+      "should_activate": true,
+      "reason": "Direct scan, gap map, and First Bite/Test Next request."
+    },
+    {
+      "id": "positive-playwright-scaffold",
+      "prompt": "Generate Playwright scenarios for the OTP leave-and-return checkout edge and keep them linked to the assurance model.",
+      "should_activate": true,
+      "reason": "Evidence-linked scenario generation and Playwright adapter use."
+    },
+    {
+      "id": "positive-flaky",
+      "prompt": "This critical UI test passes on retry. Can we count the journey as covered?",
+      "should_activate": true,
+      "reason": "Requires ICEBERG evidence licensing; retry-dependent success must remain flaky."
+    },
+    {
+      "id": "positive-lexyread",
+      "prompt": "Use Iceberg to improve LexyRead. The explanation interaction should let the learner continue reading without losing passage context.",
+      "should_activate": true,
+      "reason": "Explicit ICEBERG human-journey and continuation-context request."
+    },
+    {
+      "id": "negative-static-color",
+      "prompt": "Change the button from blue to green and do not alter behavior.",
+      "should_activate": false,
+      "reason": "Pure static styling request without journey, state, interaction, or evidence question."
+    },
+    {
+      "id": "negative-copywriting",
+      "prompt": "Rewrite the onboarding headline to sound friendlier.",
+      "should_activate": false,
+      "reason": "Copywriting task, not UI journey assurance."
+    },
+    {
+      "id": "negative-react-explanation",
+      "prompt": "Explain how React useEffect dependency arrays work.",
+      "should_activate": false,
+      "reason": "General programming education unrelated to UI journey assurance."
+    },
+    {
+      "id": "negative-image-edit",
+      "prompt": "Crop this screenshot and remove the background.",
+      "should_activate": false,
+      "reason": "Image-editing task without UI behavior/evidence analysis."
+    },
+    {
+      "id": "negative-generic-unit-test",
+      "prompt": "Write unit tests for this pure date-formatting function.",
+      "should_activate": false,
+      "reason": "No UI journey or hidden UI constraint is involved."
+    }
+  ]
+}

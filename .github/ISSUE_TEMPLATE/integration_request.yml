@@ -1,0 +1,40 @@
+name: Integration request
+description: Propose an adapter or integration with an existing testing or coding-agent tool.
+title: "Integration: "
+labels: ["enhancement"]
+body:
+  - type: input
+    id: tool
+    attributes:
+      label: Target tool
+      placeholder: "Storybook, Cypress, Selenium, Katalon, Cursor, Codex, etc."
+    validations:
+      required: true
+  - type: textarea
+    id: user_problem
+    attributes:
+      label: User problem
+      description: What user question becomes easier to answer with this integration?
+      placeholder: "Example: Which Storybook states are represented but not mapped to a critical journey?"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence available from the tool
+      description: List concrete artifacts/events the adapter can observe.
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: What this evidence must NOT establish
+      description: State the proof boundary explicitly.
+      placeholder: "A discovered story does not prove the state is reachable in a protected journey."
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed adapter shape
+      description: Keep the first version small and deterministic where possible.

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cyrillesaxo.github.io/ICEBERG/sitemap.xml

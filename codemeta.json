@@ -1,0 +1,32 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "UI Iceberg",
+  "alternateName": "ui-iceberg",
+  "description": "Open-source UI journey assurance and test-scenario intelligence that helps teams and AI coding agents identify important UI scenarios, coverage gaps, and bounded runtime evidence.",
+  "version": "0.2.0",
+  "codeRepository": "https://github.com/cyrillesaxo/ICEBERG",
+  "issueTracker": "https://github.com/cyrillesaxo/ICEBERG/issues",
+  "license": "https://spdx.org/licenses/Apache-2.0",
+  "programmingLanguage": "JavaScript",
+  "runtimePlatform": "Node.js >=20",
+  "author": {
+    "@type": "Person",
+    "name": "@cyrillesaxo",
+    "url": "https://github.com/cyrillesaxo"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Dodo LLC"
+  },
+  "keywords": [
+    "UI testing",
+    "journey assurance",
+    "test scenario intelligence",
+    "unknown coverage",
+    "Playwright",
+    "AI coding agents",
+    "MCP",
+    "Dodo LLC"
+  ]
+}

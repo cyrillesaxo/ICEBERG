@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use UI Iceberg in research, benchmarks, or technical writing, please cite this software."
+title: "UI Iceberg"
+type: software
+version: "0.2.0"
+date-released: "2026-09-05"
+authors:
+  - name: "@cyrillesaxo"
+    website: "https://github.com/cyrillesaxo"
+repository-code: "https://github.com/cyrillesaxo/ICEBERG"
+url: "https://cyrillesaxo.github.io/ICEBERG/"
+license: "Apache-2.0"
+abstract: >-
+  UI Iceberg is open-source UI journey assurance and test-scenario intelligence.
+  It generates bounded journey scenarios, maps them against existing tests, and
+  preserves unknown or weak evidence instead of normalizing it to pass.
+keywords:
+  - ui testing
+  - journey assurance
+  - test scenarios
+  - Playwright
+  - AI coding agents
+  - quality assurance
+notes: "Created by @cyrillesaxo and published by Dodo LLC."

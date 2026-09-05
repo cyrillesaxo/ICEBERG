@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a reproducible UI Iceberg defect.
+title: "Bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for helping improve UI Iceberg. Please separate observed evidence from interpretation."
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Minimal steps, repository/fixture, command, and inputs needed to reproduce.
+      placeholder: "1. Run ...\n2. Observe ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Paste bounded logs, receipts, report excerpts, or links. Remove secrets.
+  - type: input
+    id: version
+    attributes:
+      label: UI Iceberg version or commit
+      placeholder: "v0.2.0 or commit SHA"
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: "Node 20, OS, Playwright version if relevant"
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Evidence boundary
+      options:
+        - label: I have not interpreted static or candidate evidence as runtime/human proof.
+          required: true
