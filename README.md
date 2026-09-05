@@ -2,28 +2,21 @@
 
 **Find what your UI tests forgot to test.**
 
-UI Iceberg is open-source **test-scenario intelligence for critical user journeys**. It scans an existing UI codebase and test suite, generates a prioritized scenario plan, and shows important journey states and recovery paths that are still unverified.
+UI Iceberg is open-source **test-scenario intelligence for critical user journeys**. It helps answer three practical questions:
 
-It is designed to work **with** Playwright, Selenium, Cypress, Katalon, Storybook, accessibility scanners, and AI coding agents—not replace them.
+1. **What should I test?**
+2. **What important scenarios am I missing?**
+3. **Which of those scenarios actually ran and passed?**
 
-> Your test runner tells you what passed. UI Iceberg helps you find what you never tested.
+It works **with** Playwright, Selenium, Cypress, Katalon, Storybook, accessibility scanners, and AI coding agents. It is not another browser automation engine.
+
+> Your test runner tells you what passed. UI Iceberg helps you find what you never tested—and v0.2 can reconcile that plan with real Playwright executions.
 
 ## Why
 
-A team can have hundreds of passing UI tests and still miss:
+A team can have hundreds of passing UI tests and still miss payment retries, duplicate submits, OTP leave-and-return flows, session expiry, refresh/back state loss, recovery paths, mobile/zoom failures, asymmetric cancellation friction, and other journey edges that no existing test represents.
 
-- payment retry and duplicate-submit behavior,
-- OTP / email-verification leave-and-return flows,
-- session expiry and recovery,
-- refresh/back/forward state loss,
-- error states that force users to re-enter valid work,
-- responsive/zoom states that hide the primary action,
-- cancellation or consent paths with asymmetric friction,
-- state and journey edges that no existing test represents.
-
-The first problem UI Iceberg solves is simple:
-
-> **What should I test, and what important scenarios am I missing?**
+The difficult upstream problem is often not execution. It is **scenario design and unknown coverage**.
 
 ## Quick start
 
@@ -49,65 +42,57 @@ npx ui-iceberg gaps checkout .
 
 ### `scan` — what is already here?
 
-```text
-UI ICEBERG
-Repository scan
-────────────────────────────────────────────
-Project              my-store
-Files                418
-Existing tests       52
-UI frameworks        react
-Test tools           playwright, storybook, axe
-
-Candidate journeys
-  • checkout
-  • signup
-  • login
-```
+Detect the UI stack, test tools, test files, and candidate journey families.
 
 ### `scenarios` — what should I test?
 
-```text
-UI ICEBERG
-checkout scenarios
-────────────────────────────────────────────
- 1. [CRITICAL] Payment is declined, the user corrects the issue, and retries
- 2. [CRITICAL] Payment succeeds but confirmation or entitlement is delayed
- 3. [CRITICAL] Leave checkout for OTP or bank verification and return with state intact
- 4. [CRITICAL] Refresh after payment success without creating a duplicate order
- 5. [CRITICAL] Recover after a request fails and retry successfully
- ...
-```
+Generate a prioritized bounded scenario plan instead of an unbounded AI checklist.
 
 ### `gaps` — what am I missing?
 
-```text
-UI ICEBERG
-checkout journey
-────────────────────────────────────────────
-Existing tests        84
-Important scenarios   18
-Candidate covered      9
-Partial                 3
-Missing                 6
+Map that plan against existing test source. Static matching remains **candidate evidence**, never runtime proof.
 
-HIGH-VALUE GAPS
+## v0.2: Playwright runtime evidence
 
-? Leave checkout for OTP or bank verification and return with state intact
-  Priority: CRITICAL | Evidence: missing
+UI Iceberg can now generate safe Playwright scaffolds and reconcile Playwright JSON reports with its journey scenario plan.
 
-? Refresh after payment success without creating a duplicate order
-  Priority: CRITICAL | Evidence: missing
+Generate a scaffold:
 
-TEST NEXT
-Leave checkout for OTP or bank verification and return with state intact
+```bash
+ui-iceberg emit checkout --adapter=playwright --out=tests/checkout.ui-iceberg.spec.js
 ```
 
-**Important:** v0.1 static mapping is deliberately called *candidate evidence*. Lexical overlap with a test file is useful for discovery, but it does not prove runtime or human journey coverage. Strong verification comes later through explicit linkage and replay.
+Generated tests are intentionally `test.skip` until a developer or coding agent implements product-specific actions and assertions. Each carries a stable marker such as:
+
+```text
+[ICEBERG:OTP_INTERRUPT_RETURN]
+```
+
+Run Playwright with its JSON reporter and save the report, then verify:
+
+```bash
+mkdir -p .ui-iceberg
+npx playwright test --reporter=json > .ui-iceberg/playwright.json
+ui-iceberg verify checkout . --report=.ui-iceberg/playwright.json
+```
+
+The runtime output keeps evidence states distinct:
+
+```text
+linked-pass       explicit scenario link + clean runtime pass
+linked-flaky      explicit link + retry-dependent pass
+linked-fail       explicit link + runtime failure
+runtime-candidate relevant executed test, but no explicit scenario link
+unverified        no runtime evidence found
+```
+
+A retry-dependent pass is **not** normalized into PASS. A lexical/title match is **not** promoted into verified coverage.
+
+See [docs/PLAYWRIGHT.md](docs/PLAYWRIGHT.md).
 
 ## For Cursor, Codex, Bolt and other coding agents
 
-UI Iceberg includes an experimental stdio MCP server:
+Run the experimental stdio MCP server:
 
 ```bash
 npm run mcp
@@ -117,62 +102,46 @@ It exposes:
 
 - `scan_repository` — inspect the codebase and current test stack,
 - `generate_scenarios` — answer “what should this journey test?”,
-- `find_gaps` — answer “which important scenarios appear unverified?”.
+- `find_gaps` — answer “which important scenarios appear unverified?”,
+- `generate_test_spec` — create a skipped Playwright scenario scaffold,
+- `verify_journey` — reconcile a Playwright runtime report with the scenario plan.
 
-The intended agent workflow is:
+The intended relationship is:
 
 ```text
-User requirement
-      ↓
-Coding agent builds the feature
-      ↓
-UI Iceberg generates an independent journey scenario plan
-      ↓
-Agent writes / updates tests
-      ↓
-UI Iceberg maps the remaining gaps
+Coding agent = builder
+Playwright    = browser executor
+UI Iceberg    = independent scenario + evidence layer
 ```
 
-The coding agent is the builder. **UI Iceberg is the independent test-scenario and evidence layer.**
-
 ## What makes this different from AI + Selenium/Katalon?
-
-UI Iceberg is not primarily another test executor or LLM prompt wrapper.
 
 | Existing capability | UI Iceberg focus |
 | --- | --- |
 | Execute browser actions | Determine which journey conditions deserve evidence |
 | Generate test code | Generate and prioritize a persistent scenario model |
 | Count passed tests | Map evidence against important journey states/edges |
-| Heal selectors | Preserve semantic target identity before accepting substitution |
-| Retry flaky tests | Treat retry-dependent success as instability evidence |
-| Visual diff | License what a visual baseline is allowed to prove |
+| Retry flaky tests | Preserve retry-dependent success as instability evidence |
+| Heal selectors | Require semantic continuity before accepting substitution |
 | Accessibility scan | Keep human/access-channel claims explicit when automation is insufficient |
 
-The long-term goal is **journey assurance**: critical flows should be complete, recoverable, understandable, and sufficiently evidenced across relevant states and changes.
+An LLM can generate a long edge-case list. UI Iceberg's goal is to maintain a **persistent, bounded, evidence-linked journey model** that can be checked again after implementation and change.
 
 ## Product vocabulary
 
-The default UI stays familiar:
+The default surface stays familiar:
 
 **Journey → Steps → Scenarios → Coverage gaps → Test next → Verify**
 
 Internally, the PackSpec maps those concepts into ContextOfUse, TaskGraph, UI-12, UX-12, state/pressure matrices, MissSet, First Bite, WitnessGraph, admission, replay, and TERM. See [docs/VOCABULARY.md](docs/VOCABULARY.md).
 
-## Current v0.1 scope
+## Evidence discipline
 
-UI Iceberg currently provides a deliberately narrow vertical slice:
+UI Iceberg intentionally distinguishes what different evidence can prove.
 
-- static repository/test-stack discovery,
-- common critical-journey detection,
-- prioritized scenario generation,
-- static candidate evidence mapping,
-- CLI JSON output,
-- experimental MCP access for coding agents.
+A linked Playwright pass establishes that a linked browser test ran and its assertions passed. It does not automatically establish cognitive usability, accessibility completeness, backend authority, production conversion, or real-user success.
 
-It **does not yet claim** runtime scenario coverage, cognitive usability proof, accessibility completeness, or production journey health.
-
-See [docs/ROADMAP.md](docs/ROADMAP.md) for the runtime/CI plan.
+**Unknown is not PASS.**
 
 ## Research foundation
 
@@ -186,7 +155,9 @@ The project includes an evolving benchmark for cases where conventional evidence
 
 ## Status
 
-**v0.1 bootstrap / experimental.** The current scenario catalog and static evidence matcher are useful for planning and discovery, not release certification.
+**v0.2 experimental.** Scenario planning, static candidate mapping, Playwright scaffold generation, and Playwright JSON runtime reconciliation are implemented. This is not yet release certification or a claim of full journey correctness.
+
+See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Contributing
 
