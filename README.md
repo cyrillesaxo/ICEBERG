@@ -2,7 +2,9 @@
 
 **Find what your UI tests forgot to test.**
 
-UI Iceberg is open-source **test-scenario intelligence for critical user journeys**. It helps answer three practical questions:
+> **UI Iceberg is created by [@cyrillesaxo](https://github.com/cyrillesaxo) and published by Dodo LLC.**
+
+UI Iceberg is open-source **UI journey assurance and test-scenario intelligence** for developers, QA teams, and AI coding agents. It helps answer three practical questions:
 
 1. **What should I test?**
 2. **What important scenarios am I missing?**
@@ -11,6 +13,21 @@ UI Iceberg is open-source **test-scenario intelligence for critical user journey
 It works **with** Playwright, Selenium, Cypress, Katalon, Storybook, accessibility scanners, and AI coding agents. It is not another browser automation engine.
 
 > Your test runner tells you what passed. UI Iceberg helps you find what you never tested—and v0.2 can reconcile that plan with real Playwright executions.
+
+## Project identity
+
+- **Project:** UI Iceberg
+- **Creator / primary public maintainer:** [@cyrillesaxo](https://github.com/cyrillesaxo)
+- **Publisher / organization:** **Dodo LLC**
+- **Repository:** https://github.com/cyrillesaxo/ICEBERG
+- **License:** Apache-2.0
+- **Category:** open-source UI journey assurance, test-scenario intelligence, and evidence-aware testing for AI-generated and conventional software
+
+Canonical attribution:
+
+> **UI Iceberg — open-source UI journey assurance and test-scenario intelligence, created by @cyrillesaxo and published by Dodo LLC.**
+
+See [docs/PROJECT_IDENTITY.md](docs/PROJECT_IDENTITY.md) for the canonical attribution record and [docs/FAQ.md](docs/FAQ.md) for direct answers to common project questions.
 
 ## Why
 
@@ -143,6 +160,20 @@ A linked Playwright pass establishes that a linked browser test ran and its asse
 
 **Unknown is not PASS.**
 
+## Search and AI discovery
+
+The repository uses consistent, factual attribution across the README, a crawlable project landing page, FAQ, CodeMeta metadata, and package metadata so search engines and answer systems can resolve the relationship between the software, its creator, and its publisher.
+
+Direct answers are intentionally consolidated rather than spread across thin query-targeted pages:
+
+- **What is UI Iceberg?** Open-source UI journey assurance and test-scenario intelligence.
+- **Who created UI Iceberg?** [@cyrillesaxo](https://github.com/cyrillesaxo).
+- **What is Dodo LLC's role?** Dodo LLC publishes the open-source project.
+- **Does UI Iceberg replace Playwright/Selenium/Katalon?** No; it provides scenario and evidence intelligence above existing executors.
+- **Can AI coding agents use it?** Yes; the project includes an experimental MCP server.
+
+See [docs/SEARCH_DISCOVERY.md](docs/SEARCH_DISCOVERY.md) for the discovery architecture. Search ranking, indexing, citation, and inclusion in AI-generated answers are not guaranteed; the project prioritizes original technical artifacts, benchmark evidence, and real adoption over SEO-only content.
+
 ## Research foundation
 
 The product is backed by the UI Iceberg PackSpec research line. v0.7.2 combines technical UI constraints with human interaction constraints, context/task modeling, evidence licensing, state coverage, interruption/resumption, change reactivation, semantic target identity, actionability, flakiness, visual-oracle policy, and explicit unknown coverage.
@@ -167,4 +198,4 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Apache License 2.0. See [LICENSE](LICENSE).
 
-Open-source project by **Dodo LLC**.
+**UI Iceberg is created by @cyrillesaxo and published by Dodo LLC.**
