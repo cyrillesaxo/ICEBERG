@@ -1,0 +1,45 @@
+name: Journey scenario pack
+description: Propose scenarios for a critical user journey.
+title: "Scenario pack: "
+labels: ["enhancement"]
+body:
+  - type: input
+    id: journey
+    attributes:
+      label: Journey
+      placeholder: "password reset, checkout, subscription cancellation"
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: User goal
+      description: Describe the outcome in product vocabulary, not implementation terms.
+    validations:
+      required: true
+  - type: textarea
+    id: failure_modes
+    attributes:
+      label: Important failure or recovery modes
+      description: Include interruption, recovery, state, mobile, accessibility, or distributed cases when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: first_bite
+    attributes:
+      label: Smallest high-value first set
+      description: Which scenarios should be implemented first, and why?
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Evidence or references
+      description: Link public docs, issue reports, reproducible examples, or prior art if available.
+  - type: checkboxes
+    id: claims
+    attributes:
+      label: Claim discipline
+      options:
+        - label: These scenarios are proposed obligations/risk checks, not proof that real users fail or succeed.
+          required: true
