@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 import readline from "node:readline";
 import { analyzeJourneyGaps, generateScenarios, scanRepository } from "../../packages/core/src/index.js";
+import { prioritizeScenarioGaps } from "../../packages/core/src/prioritize.js";
 import { emitPlaywrightScenarioSpec, verifyJourneyWithPlaywright } from "../../packages/runtime/src/index.js";
 
 export const MCP_TOOLS = Object.freeze([
   {
     name: "scan_repository",
-    description: "Inspect a UI repository and report detected test tools, candidate critical user journeys, and a bounded implementation-risk fingerprint used for scenario hardening.",
+    description: "Inspect a UI repository and report detected test tools, candidate critical user journeys, a bounded implementation-risk fingerprint, and test-evidence risks used for scenario hardening.",
     inputSchema: {
       type: "object",
       properties: { path: { type: "string", description: "Repository path. Defaults to current working directory." } },
@@ -30,7 +31,7 @@ export const MCP_TOOLS = Object.freeze([
   },
   {
     name: "find_gaps",
-    description: "Map a prioritized journey scenario set against existing repository tests and return candidate coverage gaps, including bounded repository-risk scenarios. Results are evidence candidates, not proof of coverage or defects.",
+    description: "Map a journey scenario set against existing tests, add bounded repository-risk scenarios, identify deceptive-green test evidence risks, and rank the next test using repository relevance. Results are evidence candidates, not proof of coverage or defects.",
     inputSchema: {
       type: "object",
       required: ["journey"],
@@ -75,6 +76,11 @@ export const MCP_TOOLS = Object.freeze([
   }
 ]);
 
+function prioritizeGapReport(report) {
+  const gaps = prioritizeScenarioGaps(report.gaps || [], report.riskSignals || []);
+  return { ...report, gaps, testNext: gaps[0] || null };
+}
+
 export async function callTool(name, input = {}) {
   if (name === "scan_repository") return scanRepository(input.path || process.cwd());
   if (name === "generate_scenarios") {
@@ -90,10 +96,11 @@ export async function callTool(name, input = {}) {
     });
   }
   if (name === "find_gaps") {
-    return analyzeJourneyGaps(input.path || process.cwd(), input.journey, {
+    const report = await analyzeJourneyGaps(input.path || process.cwd(), input.journey, {
       limit: input.limit,
       patternLimit: input.patternLimit
     });
+    return prioritizeGapReport(report);
   }
   if (name === "generate_test_spec") return emitPlaywrightScenarioSpec(input.journey, { limit: input.limit });
   if (name === "verify_journey") return verifyJourneyWithPlaywright(input.path || process.cwd(), input.journey, input.report, { limit: input.limit });
