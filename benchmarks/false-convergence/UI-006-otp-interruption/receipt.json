@@ -1,14 +1,14 @@
 {
-  "schema": "ui-iceberg-benchmark-receipt-v0.1",
+  "schema": "ui-iceberg-benchmark-receipt-v0.2",
   "benchmark_id": "UI-006",
   "title": "OTP interruption / unknown journey coverage",
   "run_date": "2026-09-05",
   "repository": "cyrillesaxo/ICEBERG",
   "branch": "bootstrap-v0.1",
-  "head_commit": "337e83d1d0332e5e9392d127c6c13291c45bbbc5",
+  "head_commit": "d7fa08f289efbe2305f7148bcced68cb086156ac",
   "github_actions": {
-    "run_id": 33969309398,
-    "job_id": 101314879076,
+    "run_id": 33974969264,
+    "job_id": 101329951131,
     "conclusion": "success"
   },
   "conventional_test": {
@@ -19,13 +19,19 @@
   },
   "ui_iceberg_gap_map": {
     "existing_tests": 1,
-    "important_scenarios": 18,
+    "important_scenarios": 20,
+    "repository_risk_scenarios": 2,
     "candidate_covered": 1,
     "partial": 1,
-    "missing": 16,
+    "missing": 18,
     "otp_interrupt_return": "missing",
-    "evidence_class": "static candidate mapping",
+    "evidence_class": "static candidate mapping plus bounded implementation-risk scenario selection",
     "claim": "The existing test set does not establish the OTP leave-and-return scenario."
+  },
+  "hardening_policy": {
+    "implementation_files_only": true,
+    "pattern_budget_default": 6,
+    "claim": "Repository signals may select additional historical failure-pattern scenarios. A signal is a test hypothesis, not proof that the defect exists."
   },
   "ground_truth_probe": {
     "reproduced": true,
@@ -38,6 +44,7 @@
   "allowed_conclusion": "A passing happy-path test can coexist with an unverified high-value journey edge that is actually broken in this controlled fixture.",
   "not_established": [
     "UI Iceberg proves the root cause from static source alone",
+    "repository risk signals prove the corresponding defect exists",
     "real users would abandon checkout",
     "all checkout systems have this failure",
     "UI Iceberg is universally superior to other testing tools"
