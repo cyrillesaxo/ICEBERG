@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { generateScenarioCatalog, normalizeJourneyName, priorityScore } from "../../scenarios/src/catalog.js";
 import { selectFailurePatterns } from "../../scenarios/src/failure-patterns.js";
+import { getJourneyArchetypeScenarios } from "../../scenarios/src/journey-archetypes.js";
 import { scanTestEvidenceRisks } from "./test-evidence-risks.js";
 
 const IGNORE_DIRS = new Set([".git", "node_modules", "dist", "build", "coverage", ".next", ".nuxt", ".turbo"]);
@@ -235,8 +236,9 @@ export async function analyzeJourneyGaps(rootDir, journeyName, options = {}) {
   const scan = await scanRepository(rootDir);
   const normalized = normalizeJourneyName(journeyName);
   const base = generateScenarioCatalog(normalized, { ...options, limit: null });
+  const archetype = getJourneyArchetypeScenarios(normalized);
   const hardened = selectFailurePatterns(scan.riskSignals, { limit: Number.isFinite(options.patternLimit) ? options.patternLimit : 6 });
-  const scenarios = combineScenarios(base, hardened, normalized, options.limit);
+  const scenarios = combineScenarios([...archetype, ...base], hardened, normalized, options.limit);
   const corpus = await buildTestCorpus(scan.root, scan.testFiles);
   const mapped = scenarios.map((scenario) => ({
     ...scenario,
@@ -265,6 +267,7 @@ export async function analyzeJourneyGaps(rootDir, journeyName, options = {}) {
     existingTests: scan.counts.tests,
     riskSignals: scan.riskSignals,
     testEvidenceRisks: scan.testEvidenceRisks,
+    archetypeScenarioCount: mapped.filter((scenario) => scenario.source === "journey-archetype").length,
     hardenedScenarioCount: mapped.filter((scenario) => scenario.source === "failure-pattern-library").length,
     scenarios: mapped,
     summary,
@@ -282,13 +285,15 @@ export async function analyzeJourneyGaps(rootDir, journeyName, options = {}) {
 export function generateScenarios(journeyName, options = {}) {
   const normalized = normalizeJourneyName(journeyName);
   const base = generateScenarioCatalog(normalized, { ...options, limit: null });
+  const archetype = getJourneyArchetypeScenarios(normalized);
   const hardened = selectFailurePatterns(options.riskSignals || [], { limit: Number.isFinite(options.patternLimit) ? options.patternLimit : 6 });
-  const scenarios = combineScenarios(base, hardened, normalized, options.limit);
+  const scenarios = combineScenarios([...archetype, ...base], hardened, normalized, options.limit);
   return {
     schema: "ui-iceberg-scenarios-v0.2",
     journey: normalized,
     scenarios,
     hardening: {
+      archetype: scenarios.filter((scenario) => scenario.source === "journey-archetype").length,
       selected: scenarios.filter((scenario) => scenario.source === "failure-pattern-library").length,
       source: "generalized-industry-patterns",
       boundary: "Selected historical failure patterns are hypotheses to test, not evidence that the repository contains those defects."
