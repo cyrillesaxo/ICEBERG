@@ -5,6 +5,7 @@ import { selectFailurePatterns } from "../../scenarios/src/failure-patterns.js";
 
 const IGNORE_DIRS = new Set([".git", "node_modules", "dist", "build", "coverage", ".next", ".nuxt", ".turbo"]);
 const TEXT_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".json", ".md", ".html", ".vue", ".svelte", ".feature", ".yml", ".yaml", ".css", ".scss", ".less"]);
+const RISK_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".html", ".vue", ".svelte", ".css", ".scss", ".less"]);
 const TEST_PATTERNS = [/\.test\.[cm]?[jt]sx?$/i, /\.spec\.[cm]?[jt]sx?$/i, /(^|\/)tests?\//i, /(^|\/)e2e\//i, /\.feature$/i];
 
 const RISK_SIGNAL_PATTERNS = Object.freeze([
@@ -141,7 +142,10 @@ export async function scanRepository(rootDir = process.cwd()) {
   const testFiles = files.filter((file) => TEST_PATTERNS.some((regex) => regex.test(file)));
   const routeLikeFiles = files.filter((file) => /route|router|page|screen|view|app\.[jt]sx?|main\.[jt]sx?/i.test(file));
   const journeyCorpusFiles = uniq([...testFiles, ...routeLikeFiles]).slice(0, 250);
-  const riskCorpusFiles = files.filter((file) => !/package-lock|yarn\.lock|pnpm-lock/i.test(file)).slice(0, 600);
+  const riskCorpusFiles = files
+    .filter((file) => RISK_EXTENSIONS.has(path.extname(file).toLowerCase()))
+    .filter((file) => !TEST_PATTERNS.some((regex) => regex.test(file)))
+    .slice(0, 600);
   const journeyChunks = await Promise.all(journeyCorpusFiles.map((file) => safeRead(path.join(root, file))));
   const riskChunks = await Promise.all(riskCorpusFiles.map((file) => safeRead(path.join(root, file))));
   const journeyCorpus = journeyChunks.join("\n");
@@ -156,14 +160,15 @@ export async function scanRepository(rootDir = process.cwd()) {
     counts: {
       files: files.length,
       tests: testFiles.length,
-      routeLikeFiles: routeLikeFiles.length
+      routeLikeFiles: routeLikeFiles.length,
+      implementationFilesSampled: riskCorpusFiles.length
     },
     testFiles,
     candidateJourneys: discoverJourneyCandidates(journeyCorpus),
     riskSignals: detectRiskSignals(riskCorpus),
     hardeningPolicy: {
       source: "generalized-industry-patterns",
-      statement: "Risk signals select additional scenarios from a bounded failure-pattern library. A matched pattern is a test hypothesis, not proof that the defect exists."
+      statement: "Risk signals are derived from implementation files only and select additional scenarios from a bounded failure-pattern library. A matched pattern is a test hypothesis, not proof that the defect exists."
     },
     caveat: "Static discovery is a candidate map. It does not establish runtime or human journey coverage."
   };
@@ -205,9 +210,9 @@ function mapScenarioEvidence(scenario, testCorpus) {
   return { state, score: Number(score.toFixed(2)), files: matches.slice(0, 5) };
 }
 
-function combineScenarios(base, extra, journey) {
+function combineScenarios(base, extra, journey, limit) {
   const seen = new Set();
-  return [...base, ...extra]
+  const combined = [...base, ...extra]
     .map((scenario, index) => ({ ...scenario, journey, rank: scenario.rank || index + 1 }))
     .filter((scenario) => {
       if (seen.has(scenario.id)) return false;
@@ -218,14 +223,15 @@ function combineScenarios(base, extra, journey) {
       const priority = priorityScore(b.priority) - priorityScore(a.priority);
       return priority || a.rank - b.rank;
     });
+  return Number.isFinite(limit) ? combined.slice(0, limit) : combined;
 }
 
 export async function analyzeJourneyGaps(rootDir, journeyName, options = {}) {
   const scan = await scanRepository(rootDir);
   const normalized = normalizeJourneyName(journeyName);
-  const base = generateScenarioCatalog(normalized, options);
+  const base = generateScenarioCatalog(normalized, { ...options, limit: null });
   const hardened = selectFailurePatterns(scan.riskSignals, { limit: Number.isFinite(options.patternLimit) ? options.patternLimit : 6 });
-  const scenarios = combineScenarios(base, hardened, normalized);
+  const scenarios = combineScenarios(base, hardened, normalized, options.limit);
   const corpus = await buildTestCorpus(scan.root, scan.testFiles);
   const mapped = scenarios.map((scenario) => ({
     ...scenario,
@@ -253,7 +259,7 @@ export async function analyzeJourneyGaps(rootDir, journeyName, options = {}) {
     repository: scan.packageName,
     existingTests: scan.counts.tests,
     riskSignals: scan.riskSignals,
-    hardenedScenarioCount: hardened.length,
+    hardenedScenarioCount: mapped.filter((scenario) => scenario.source === "failure-pattern-library").length,
     scenarios: mapped,
     summary,
     gaps,
@@ -268,14 +274,15 @@ export async function analyzeJourneyGaps(rootDir, journeyName, options = {}) {
 
 export function generateScenarios(journeyName, options = {}) {
   const normalized = normalizeJourneyName(journeyName);
-  const base = generateScenarioCatalog(normalized, options);
+  const base = generateScenarioCatalog(normalized, { ...options, limit: null });
   const hardened = selectFailurePatterns(options.riskSignals || [], { limit: Number.isFinite(options.patternLimit) ? options.patternLimit : 6 });
+  const scenarios = combineScenarios(base, hardened, normalized, options.limit);
   return {
     schema: "ui-iceberg-scenarios-v0.2",
     journey: normalized,
-    scenarios: combineScenarios(base, hardened, normalized),
+    scenarios,
     hardening: {
-      selected: hardened.length,
+      selected: scenarios.filter((scenario) => scenario.source === "failure-pattern-library").length,
       source: "generalized-industry-patterns",
       boundary: "Selected historical failure patterns are hypotheses to test, not evidence that the repository contains those defects."
     },
