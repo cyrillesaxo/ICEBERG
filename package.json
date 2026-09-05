@@ -35,7 +35,8 @@
     "check": "node --check packages/cli/bin/ui-iceberg.js && node --check packages/core/src/index.js && node --check packages/scenarios/src/catalog.js && node --check packages/runtime/src/index.js && node --check packages/adapters/playwright/src/index.js && node --check mcp/server/index.js",
     "mcp": "node mcp/server/index.js",
     "demo": "node packages/cli/bin/ui-iceberg.js scenarios checkout",
-    "demo:quickstart": "node packages/cli/bin/ui-iceberg.js gaps checkout examples/quickstart-checkout"
+    "demo:quickstart": "node packages/cli/bin/ui-iceberg.js gaps checkout examples/quickstart-checkout",
+    "benchmark:ui006": "node --test benchmarks/false-convergence/UI-006-otp-interruption/tests/checkout.test.js && node packages/cli/bin/ui-iceberg.js gaps checkout benchmarks/false-convergence/UI-006-otp-interruption && node benchmarks/false-convergence/UI-006-otp-interruption/ground-truth.mjs"
   },
   "engines": {
     "node": ">=20"
