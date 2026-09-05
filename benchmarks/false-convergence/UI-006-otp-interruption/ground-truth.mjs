@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { startCheckout, leaveForOtp, returnFromOtp } from "./src/checkout-state.js";
+import { startCheckout, leaveForOtp, returnFromOtp } from "./src/checkout-model.js";
 
 const initial = startCheckout(["demo-item"]);
 const external = leaveForOtp(initial);
