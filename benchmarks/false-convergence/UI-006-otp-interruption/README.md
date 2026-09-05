@@ -16,9 +16,33 @@ npm run benchmark:ui006
 
 The command performs three independent steps:
 
-1. Runs the conventional happy-path test. It should pass.
-2. Runs `ui-iceberg gaps checkout` against the fixture. The OTP interruption scenario should remain unverified / appear among the high-value gaps.
-3. Runs an independent ground-truth probe that deliberately exercises the external-verification return edge and confirms the benchmark defect: cart and payment draft state are lost.
+1. Runs the conventional happy-path test.
+2. Runs `ui-iceberg gaps checkout` against the fixture.
+3. Runs an independent ground-truth probe that exercises the external-verification return edge.
+
+## Reproduced result
+
+GitHub Actions run `33969309398` on head `337e83d1d0332e5e9392d127c6c13291c45bbbc5` reproduced the episode successfully:
+
+```text
+Conventional happy-path test
+1 passed / 0 failed
+
+UI Iceberg gap map
+Existing tests        1
+Important scenarios   18
+Candidate covered     1
+Partial               1
+Missing               16
+
+OTP leave-and-return  MISSING
+
+Ground truth
+cart state lost       YES
+payment draft lost    YES
+```
+
+The machine-readable receipt is committed as [`receipt.json`](receipt.json).
 
 ## Why this matters
 
@@ -32,18 +56,15 @@ OTP interruption is covered
 OTP interruption is correct
 ```
 
-A green conventional suite establishes the first claim only. UI Iceberg should keep the second claim explicit as unknown/candidate evidence until an appropriate test exists. The ground-truth probe independently demonstrates that, in this fixture, the unknown edge is in fact broken.
+A green conventional suite establishes the first claim only. UI Iceberg keeps the second claim explicit until appropriate evidence exists. The independent probe demonstrates that, in this controlled fixture, the missing edge is in fact broken.
 
-## Expected evidence boundary
+## Evidence boundary
 
-UI Iceberg is expected to say, in effect:
+This episode supports the bounded conclusion:
 
-- core checkout evidence exists,
-- important scenario coverage is incomplete,
-- OTP leave-and-return deserves testing,
-- static lexical mapping is not runtime proof.
+> A passing happy-path UI test can coexist with an unverified high-value journey edge that is actually broken in a controlled fixture.
 
-It must **not** claim from static analysis alone that real users would abandon the checkout, that the exact root cause is session loss, or that the defect occurs in production systems generally.
+It does **not** establish that UI Iceberg proves the root cause from static source alone, that real users would abandon checkout, that all checkout systems have this failure, or that UI Iceberg is universally superior to other testing tools.
 
 ## Attribution
 
