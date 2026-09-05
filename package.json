@@ -26,6 +26,7 @@
   "exports": {
     ".": "./packages/core/src/index.js",
     "./scenarios": "./packages/scenarios/src/catalog.js",
+    "./journey-archetypes": "./packages/scenarios/src/journey-archetypes.js",
     "./failure-patterns": "./packages/scenarios/src/failure-patterns.js",
     "./evidence-risks": "./packages/core/src/test-evidence-risks.js",
     "./runtime": "./packages/runtime/src/index.js",
@@ -34,7 +35,7 @@
   },
   "scripts": {
     "test": "node --test",
-    "check": "node --check packages/cli/bin/ui-iceberg.js && node --check packages/core/src/index.js && node --check packages/core/src/test-evidence-risks.js && node --check packages/scenarios/src/catalog.js && node --check packages/scenarios/src/failure-patterns.js && node --check packages/runtime/src/index.js && node --check packages/adapters/playwright/src/index.js && node --check mcp/server/index.js",
+    "check": "node --check packages/cli/bin/ui-iceberg.js && node --check packages/core/src/index.js && node --check packages/core/src/test-evidence-risks.js && node --check packages/scenarios/src/catalog.js && node --check packages/scenarios/src/journey-archetypes.js && node --check packages/scenarios/src/failure-patterns.js && node --check packages/runtime/src/index.js && node --check packages/adapters/playwright/src/index.js && node --check mcp/server/index.js",
     "mcp": "node mcp/server/index.js",
     "demo": "node packages/cli/bin/ui-iceberg.js scenarios checkout",
     "demo:quickstart": "node packages/cli/bin/ui-iceberg.js gaps checkout examples/quickstart-checkout",
