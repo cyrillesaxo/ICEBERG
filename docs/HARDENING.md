@@ -1,5 +1,7 @@
 # Repository-aware hardening
 
+> **Status:** experimental v0.2 hardening layer. Signals select test hypotheses; they do not certify defects.
+
 UI Iceberg does not rely only on a fixed checkout/signup checklist. The repository scan now builds two independent risk surfaces and uses them to harden scenario planning:
 
 1. an **implementation risk fingerprint** selects relevant scenario hypotheses;
