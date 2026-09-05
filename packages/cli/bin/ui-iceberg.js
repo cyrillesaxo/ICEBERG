@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { analyzeJourneyGaps, generateScenarios, scanRepository } from "../../core/src/index.js";
+import { prioritizeScenarioGaps } from "../../core/src/prioritize.js";
 import { emitPlaywrightScenarioSpec, verifyJourneyWithPlaywright } from "../../runtime/src/index.js";
 
 const args = process.argv.slice(2);
@@ -11,7 +12,7 @@ const json = args.includes("--json");
 const values = args.filter((arg) => !arg.startsWith("--"));
 
 function printHelp() {
-  console.log(`UI Iceberg v0.2\n\nFind what your UI tests forgot to test.\n\nUsage:\n  ui-iceberg scan [path] [--json]\n  ui-iceberg scenarios <journey> [path] [--limit=N] [--json]\n  ui-iceberg gaps <journey> [path] [--limit=N] [--json]\n  ui-iceberg emit <journey> --adapter=playwright [--out=path] [--limit=N] [--json]\n  ui-iceberg verify <journey> [path] --report=playwright.json [--json]\n\nExamples:\n  ui-iceberg scan .\n  ui-iceberg scenarios checkout .\n  ui-iceberg gaps checkout .\n  ui-iceberg emit checkout --adapter=playwright --out=tests/checkout.ui-iceberg.spec.js\n  ui-iceberg verify checkout . --report=.ui-iceberg/playwright.json\n`);
+  console.log(`UI Iceberg v0.2\n\nFind what your UI tests forgot to test.\n\nUsage:\n  ui-iceberg scan [path] [--json]\n  ui-iceberg scenarios <journey> [path] [--limit=N] [--pattern-limit=N] [--json]\n  ui-iceberg gaps <journey> [path] [--limit=N] [--pattern-limit=N] [--json]\n  ui-iceberg emit <journey> --adapter=playwright [--out=path] [--limit=N] [--json]\n  ui-iceberg verify <journey> [path] --report=playwright.json [--json]\n\nExamples:\n  ui-iceberg scan .\n  ui-iceberg scenarios checkout .\n  ui-iceberg gaps checkout .\n  ui-iceberg emit checkout --adapter=playwright --out=tests/checkout.ui-iceberg.spec.js\n  ui-iceberg verify checkout . --report=.ui-iceberg/playwright.json\n`);
 }
 
 function optionValue(name) {
@@ -36,6 +37,11 @@ function runtimeIcon(state) {
   if (state === "linked-flaky") return "~";
   if (state === "runtime-candidate") return "?";
   return "·";
+}
+
+function prioritizeReport(result) {
+  const gaps = prioritizeScenarioGaps(result.gaps || [], result.riskSignals || []);
+  return { ...result, gaps, testNext: gaps[0] || null };
 }
 
 function printEvidenceRisks(risks = []) {
@@ -72,11 +78,12 @@ function printScan(result) {
 function printScenarios(result) {
   console.log(`UI ICEBERG\n${result.journey.replaceAll("_", " ")} scenarios\n${"─".repeat(44)}`);
   for (const [index, scenario] of result.scenarios.entries()) {
-    const suffix = scenario.source === "failure-pattern-library" ? " [repo-risk]" : "";
+    const suffix = scenario.source === "failure-pattern-library" ? " [repo-risk]" : scenario.source === "journey-archetype" ? " [journey]" : "";
     console.log(`${String(index + 1).padStart(2)}. [${scenario.priority.toUpperCase()}] ${scenario.title}${suffix}`);
     console.log(`    ${scenario.why}`);
   }
   console.log(`\n${result.scenarios.length} high-value scenarios generated.`);
+  if (result.hardening?.archetype) console.log(`${result.hardening.archetype} journey-specific archetype scenarios included.`);
   if (result.hardening?.selected) console.log(`${result.hardening.selected} repository-specific hardening scenarios selected from implementation signals.`);
   if (result.hardening?.boundary) console.log(`Hardening note: ${result.hardening.boundary}`);
 }
@@ -85,6 +92,7 @@ function printGaps(result) {
   console.log(`UI ICEBERG\n${result.journey.replaceAll("_", " ")} journey\n${"─".repeat(44)}`);
   console.log(`Existing tests        ${result.existingTests}`);
   console.log(`Important scenarios   ${result.scenarios.length}`);
+  console.log(`Journey scenarios     ${result.archetypeScenarioCount || 0}`);
   console.log(`Repo-risk scenarios   ${result.hardenedScenarioCount || 0}`);
   console.log(`Evidence risks        ${result.testEvidenceRisks?.length || 0}`);
   console.log(`Candidate covered     ${result.summary["candidate-covered"]}`);
@@ -95,7 +103,7 @@ function printGaps(result) {
   console.log("\nHIGH-VALUE GAPS");
   if (!high.length) console.log("  No high-priority candidate gaps found by static mapping.");
   for (const gap of high) {
-    const suffix = gap.source === "failure-pattern-library" ? " [repo-risk]" : "";
+    const suffix = gap.source === "failure-pattern-library" ? " [repo-risk]" : gap.source === "journey-archetype" ? " [journey]" : "";
     console.log(`\n${icon(gap.evidence.state)} ${gap.title}${suffix}`);
     console.log(`  Priority: ${gap.priority.toUpperCase()} | Evidence: ${gap.evidence.state}`);
     console.log(`  Why: ${gap.why}`);
@@ -103,7 +111,8 @@ function printGaps(result) {
 
   if (result.testNext) {
     console.log(`\nTEST NEXT\n${result.testNext.title}`);
-    console.log(`Why: ${result.testNext.why}`);
+    console.log(`Why: ${result.testNext.recommendation?.explanation || result.testNext.why}`);
+    if (result.testNext.recommendation) console.log(`Ranking note: ${result.testNext.recommendation.boundary}`);
   }
   if (result.testEvidenceRisks?.length) {
     console.log("\nEVIDENCE TO REVIEW");
@@ -174,10 +183,11 @@ try {
     const journey = values[1];
     if (!journey) throw new Error("gaps requires a journey, e.g. `ui-iceberg gaps checkout .`");
     const root = values[2] || ".";
-    const result = await analyzeJourneyGaps(root, journey, {
+    const raw = await analyzeJourneyGaps(root, journey, {
       limit: optionNumber("limit"),
       patternLimit: optionNumber("pattern-limit")
     });
+    const result = prioritizeReport(raw);
     if (json) console.log(JSON.stringify(result, null, 2));
     else printGaps(result);
     process.exit(0);
