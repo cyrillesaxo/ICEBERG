@@ -3,6 +3,35 @@ import readline from "node:readline";
 import { analyzeJourneyGaps, generateScenarios, scanRepository } from "../../packages/core/src/index.js";
 import { prioritizeScenarioGaps } from "../../packages/core/src/prioritize.js";
 import { emitPlaywrightScenarioSpec, verifyJourneyWithPlaywright } from "../../packages/runtime/src/index.js";
+import {
+  admitEvidence,
+  analyzeReactivationImpact,
+  issueAssuranceReceipt,
+  selectFirstBite
+} from "../../packages/assurance/src/index.js";
+
+export const MCP_PROTOCOLS = Object.freeze({
+  modern: "2026-07-28",
+  legacy: "2025-06-18"
+});
+
+export const MCP_SERVER_INFO = Object.freeze({ name: "ui-iceberg", version: "0.3.0" });
+
+const SERVER_INFO_META_KEY = "io.modelcontextprotocol/serverInfo";
+const PROTOCOL_VERSION_META_KEY = "io.modelcontextprotocol/protocolVersion";
+
+const EVIDENCE_ITEM_SCHEMA = {
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    state: { type: "string" },
+    channel: { type: "string" },
+    source: { type: "string" },
+    scope: { type: "string" },
+    note: { type: "string" }
+  },
+  additionalProperties: true
+};
 
 export const MCP_TOOLS = Object.freeze([
   {
@@ -45,6 +74,19 @@ export const MCP_TOOLS = Object.freeze([
     }
   },
   {
+    name: "select_first_bite",
+    description: "Rank supplied gap scenarios and return the smallest highest-value next discriminating probe. The score is a testing recommendation, not a defect probability.",
+    inputSchema: {
+      type: "object",
+      required: ["gaps"],
+      properties: {
+        gaps: { type: "array", items: { type: "object", additionalProperties: true } },
+        riskSignals: { type: "array", items: { anyOf: [{ type: "string" }, { type: "object", additionalProperties: true }] } }
+      },
+      additionalProperties: false
+    }
+  },
+  {
     name: "generate_test_spec",
     description: "Generate a skipped Playwright scaffold for prioritized UI Iceberg scenarios. The agent must implement product-specific actions/assertions before enabling tests.",
     inputSchema: {
@@ -70,6 +112,55 @@ export const MCP_TOOLS = Object.freeze([
         report: { type: "string", description: "Path to a Playwright JSON reporter output." },
         adapter: { type: "string", enum: ["playwright"] },
         limit: { type: "integer", minimum: 1, maximum: 100 }
+      },
+      additionalProperties: false
+    }
+  },
+  {
+    name: "admit_evidence",
+    description: "Issue a scoped admission verdict from supplied witnesses and antiwitnesses. Unknown/candidate evidence and flaky execution never become PASS; stronger human, accessibility, production, causal, and business claims remain unlicensed unless separately evidenced.",
+    inputSchema: {
+      type: "object",
+      required: ["claim", "evidence"],
+      properties: {
+        claim: { type: "object", additionalProperties: true },
+        scope: { type: "string" },
+        evidence: { type: "array", items: { anyOf: [{ type: "string" }, EVIDENCE_ITEM_SCHEMA] } },
+        antiwitnesses: { type: "array", items: { anyOf: [{ type: "string" }, EVIDENCE_ITEM_SCHEMA] } }
+      },
+      additionalProperties: false
+    }
+  },
+  {
+    name: "reactivation_impact",
+    description: "Determine which previously evaluated scenarios should be reactivated after changed files or implementation-pressure signals. Unmapped changes remain unknown rather than being treated as safe.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        changedFiles: { type: "array", items: { type: "string" } },
+        changedSignals: { type: "array", items: { anyOf: [{ type: "string" }, { type: "object", additionalProperties: true }] } },
+        scenarios: { type: "array", items: { type: "object", additionalProperties: true } },
+        previousReceipt: { type: "object", additionalProperties: true }
+      },
+      additionalProperties: false
+    }
+  },
+  {
+    name: "issue_receipt",
+    description: "Create a compact deterministic ICEBERG assurance receipt linking scan, gap map, Test Next, admission, reactivation, allowed conclusion, non-established claims, and residual unknowns.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project: { type: "string" },
+        journey: { type: "string" },
+        scan: { type: "object", additionalProperties: true },
+        gapMap: { type: "object", additionalProperties: true },
+        testNext: { type: "object", additionalProperties: true },
+        admission: { type: "object", additionalProperties: true },
+        reactivation: { type: "object", additionalProperties: true },
+        allowedConclusion: { type: "string" },
+        notEstablished: { type: "array", items: { type: "string" } },
+        residualUnknowns: { type: "array", items: { type: "string" } }
       },
       additionalProperties: false
     }
@@ -102,45 +193,108 @@ export async function callTool(name, input = {}) {
     });
     return prioritizeGapReport(report);
   }
+  if (name === "select_first_bite") return selectFirstBite(input.gaps || [], input.riskSignals || []);
   if (name === "generate_test_spec") return emitPlaywrightScenarioSpec(input.journey, { limit: input.limit });
   if (name === "verify_journey") return verifyJourneyWithPlaywright(input.path || process.cwd(), input.journey, input.report, { limit: input.limit });
+  if (name === "admit_evidence") return admitEvidence(input);
+  if (name === "reactivation_impact") return analyzeReactivationImpact(input);
+  if (name === "issue_receipt") return issueAssuranceReceipt(input);
   throw new Error(`Unknown tool: ${name}`);
 }
 
-function resultPayload(value) {
-  return {
+function serverMeta() {
+  return { [SERVER_INFO_META_KEY]: MCP_SERVER_INFO };
+}
+
+function modernResult(value) {
+  return { resultType: "complete", ...value, _meta: { ...(value?._meta || {}), ...serverMeta() } };
+}
+
+function resultPayload(value, modern = false) {
+  const result = {
     content: [{ type: "text", text: JSON.stringify(value, null, 2) }],
     structuredContent: value,
     isError: false
+  };
+  return modern ? modernResult(result) : result;
+}
+
+function errorPayload(message, modern = false) {
+  const result = { content: [{ type: "text", text: message }], isError: true };
+  return modern ? modernResult(result) : result;
+}
+
+function requestedProtocol(message) {
+  return message?.params?._meta?.[PROTOCOL_VERSION_META_KEY] || null;
+}
+
+function isModernRequest(message) {
+  return message?.method === "server/discover" || requestedProtocol(message) === MCP_PROTOCOLS.modern;
+}
+
+function unsupportedProtocol(id, version) {
+  return {
+    jsonrpc: "2.0",
+    id,
+    error: {
+      code: -32022,
+      message: `Unsupported MCP protocol version: ${version}`,
+      data: { supportedVersions: [MCP_PROTOCOLS.modern, MCP_PROTOCOLS.legacy] }
+    }
   };
 }
 
 export async function handleRpc(message) {
   const { id, method, params = {} } = message;
+  const version = requestedProtocol(message);
+  if (version && !Object.values(MCP_PROTOCOLS).includes(version)) return unsupportedProtocol(id, version);
+
+  if (method === "server/discover") {
+    return {
+      jsonrpc: "2.0",
+      id,
+      result: modernResult({
+        supportedVersions: [MCP_PROTOCOLS.modern, MCP_PROTOCOLS.legacy],
+        capabilities: { tools: {} },
+        instructions: "Use scan/gap tools to form bounded hypotheses, select_first_bite to choose the next discriminating probe, admit_evidence only after evidence exists, and reactivation_impact after meaningful changes. Unknown is not PASS; flaky is not PASS.",
+        ttlMs: 300000,
+        cacheScope: "public"
+      })
+    };
+  }
+
+  // Backward-compatible 2025-era handshake. Modern 2026-07-28 clients use server/discover instead.
   if (method === "initialize") {
     return {
       jsonrpc: "2.0",
       id,
       result: {
-        protocolVersion: params.protocolVersion || "2025-06-18",
+        protocolVersion: params.protocolVersion || MCP_PROTOCOLS.legacy,
         capabilities: { tools: {} },
-        serverInfo: { name: "ui-iceberg", version: "0.2.0" }
+        serverInfo: MCP_SERVER_INFO
       }
     };
   }
-  if (method === "tools/list") return { jsonrpc: "2.0", id, result: { tools: MCP_TOOLS } };
+
+  const modern = isModernRequest(message);
+  if (method === "tools/list") {
+    const result = { tools: MCP_TOOLS };
+    if (modern) {
+      result.ttlMs = 300000;
+      result.cacheScope = "public";
+    }
+    return { jsonrpc: "2.0", id, result: modern ? modernResult(result) : result };
+  }
+
   if (method === "tools/call") {
     try {
       const value = await callTool(params.name, params.arguments || {});
-      return { jsonrpc: "2.0", id, result: resultPayload(value) };
+      return { jsonrpc: "2.0", id, result: resultPayload(value, modern) };
     } catch (error) {
-      return {
-        jsonrpc: "2.0",
-        id,
-        result: { content: [{ type: "text", text: error.message }], isError: true }
-      };
+      return { jsonrpc: "2.0", id, result: errorPayload(error.message, modern) };
     }
   }
+
   if (method?.startsWith("notifications/")) return null;
   return { jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${method}` } };
 }
