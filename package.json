@@ -35,7 +35,7 @@
     "./mcp": "./mcp/server/index.js"
   },
   "scripts": {
-    "test": "node --test",
+    "test": "node --test test",
     "check": "node --check packages/cli/bin/ui-iceberg.js && node --check packages/core/src/index.js && node --check packages/core/src/test-evidence-risks.js && node --check packages/core/src/prioritize.js && node --check packages/scenarios/src/catalog.js && node --check packages/scenarios/src/journey-archetypes.js && node --check packages/scenarios/src/failure-patterns.js && node --check packages/runtime/src/index.js && node --check packages/adapters/playwright/src/index.js && node --check mcp/server/index.js",
     "mcp": "node mcp/server/index.js",
     "demo": "node packages/cli/bin/ui-iceberg.js scenarios checkout",
