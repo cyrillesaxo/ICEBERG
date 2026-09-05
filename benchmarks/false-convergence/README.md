@@ -2,7 +2,33 @@
 
 A false-convergence episode is one where ordinary evidence can look healthy while a protected journey condition remains unverified or broken.
 
-Initial benchmark classes:
+## Runnable episode
+
+### UI-006 — OTP interruption / unknown journey coverage
+
+The first runnable fixture is available at [`UI-006-otp-interruption`](UI-006-otp-interruption/README.md).
+
+From the repository root:
+
+```bash
+npm run benchmark:ui006
+```
+
+It deliberately separates three facts:
+
+```text
+happy-path test passes
+        !=
+OTP interruption is covered
+        !=
+OTP interruption is correct
+```
+
+The conventional happy-path test passes. UI Iceberg keeps the OTP leave-and-return scenario explicit as an unverified high-value gap. An independent ground-truth probe then exercises that edge and reproduces the fixture's intentional state-loss defect.
+
+This is a **single bounded benchmark episode**, not a market-wide superiority claim.
+
+## Benchmark classes
 
 | ID | Episode | Conventional evidence that may pass | Hidden failure |
 | --- | --- | --- | --- |
