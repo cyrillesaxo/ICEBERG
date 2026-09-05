@@ -1,0 +1,46 @@
+{
+  "schema": "ui-iceberg-benchmark-receipt-v0.1",
+  "benchmark_id": "UI-006",
+  "title": "OTP interruption / unknown journey coverage",
+  "run_date": "2026-09-05",
+  "repository": "cyrillesaxo/ICEBERG",
+  "branch": "bootstrap-v0.1",
+  "head_commit": "337e83d1d0332e5e9392d127c6c13291c45bbbc5",
+  "github_actions": {
+    "run_id": 33969309398,
+    "job_id": 101314879076,
+    "conclusion": "success"
+  },
+  "conventional_test": {
+    "tests": 1,
+    "passed": 1,
+    "failed": 0,
+    "claim": "The happy-path checkout test passes."
+  },
+  "ui_iceberg_gap_map": {
+    "existing_tests": 1,
+    "important_scenarios": 18,
+    "candidate_covered": 1,
+    "partial": 1,
+    "missing": 16,
+    "otp_interrupt_return": "missing",
+    "evidence_class": "static candidate mapping",
+    "claim": "The existing test set does not establish the OTP leave-and-return scenario."
+  },
+  "ground_truth_probe": {
+    "reproduced": true,
+    "observed": [
+      "cart state lost after OTP return",
+      "payment draft lost after OTP return"
+    ],
+    "claim": "The fixture intentionally contains a state-loss defect on the OTP return edge."
+  },
+  "allowed_conclusion": "A passing happy-path test can coexist with an unverified high-value journey edge that is actually broken in this controlled fixture.",
+  "not_established": [
+    "UI Iceberg proves the root cause from static source alone",
+    "real users would abandon checkout",
+    "all checkout systems have this failure",
+    "UI Iceberg is universally superior to other testing tools"
+  ],
+  "attribution": "UI Iceberg is created by @cyrillesaxo and published by Dodo LLC."
+}
