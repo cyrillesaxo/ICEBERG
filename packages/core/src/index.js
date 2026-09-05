@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { generateScenarioCatalog, normalizeJourneyName, priorityScore } from "../../scenarios/src/catalog.js";
 import { selectFailurePatterns } from "../../scenarios/src/failure-patterns.js";
+import { scanTestEvidenceRisks } from "./test-evidence-risks.js";
 
 const IGNORE_DIRS = new Set([".git", "node_modules", "dist", "build", "coverage", ".next", ".nuxt", ".turbo"]);
 const TEXT_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".json", ".md", ".html", ".vue", ".svelte", ".feature", ".yml", ".yaml", ".css", ".scss", ".less"]);
@@ -151,6 +152,7 @@ export async function scanRepository(rootDir = process.cwd()) {
   const journeyCorpus = journeyChunks.join("\n");
   const riskCorpus = riskChunks.join("\n");
   const frameworks = detectFrameworks(packageJson, files);
+  const testEvidence = await scanTestEvidenceRisks(root, testFiles, files);
 
   return {
     schema: "ui-iceberg-scan-v0.2",
@@ -161,14 +163,17 @@ export async function scanRepository(rootDir = process.cwd()) {
       files: files.length,
       tests: testFiles.length,
       routeLikeFiles: routeLikeFiles.length,
-      implementationFilesSampled: riskCorpusFiles.length
+      implementationFilesSampled: riskCorpusFiles.length,
+      testEvidenceFilesSampled: testEvidence.filesSampled
     },
     testFiles,
     candidateJourneys: discoverJourneyCandidates(journeyCorpus),
     riskSignals: detectRiskSignals(riskCorpus),
+    testEvidenceRisks: testEvidence.risks,
     hardeningPolicy: {
       source: "generalized-industry-patterns",
-      statement: "Risk signals are derived from implementation files only and select additional scenarios from a bounded failure-pattern library. A matched pattern is a test hypothesis, not proof that the defect exists."
+      statement: "Risk signals are derived from implementation files only and select additional scenarios from a bounded failure-pattern library. A matched pattern is a test hypothesis, not proof that the defect exists.",
+      testEvidence: testEvidence.policy
     },
     caveat: "Static discovery is a candidate map. It does not establish runtime or human journey coverage."
   };
@@ -259,6 +264,7 @@ export async function analyzeJourneyGaps(rootDir, journeyName, options = {}) {
     repository: scan.packageName,
     existingTests: scan.counts.tests,
     riskSignals: scan.riskSignals,
+    testEvidenceRisks: scan.testEvidenceRisks,
     hardenedScenarioCount: mapped.filter((scenario) => scenario.source === "failure-pattern-library").length,
     scenarios: mapped,
     summary,
@@ -267,7 +273,8 @@ export async function analyzeJourneyGaps(rootDir, journeyName, options = {}) {
     evidencePolicy: {
       status: "candidate mapping",
       statement: "Static lexical overlap can identify likely test evidence, but cannot certify scenario coverage. Runtime replay or explicit test linkage is required for strong verification.",
-      hardening: scan.hardeningPolicy.statement
+      hardening: scan.hardeningPolicy.statement,
+      testEvidence: scan.hardeningPolicy.testEvidence
     }
   };
 }
