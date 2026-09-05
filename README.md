@@ -14,6 +14,42 @@ It works **with** Playwright, Selenium, Cypress, Katalon, Storybook, accessibili
 
 > Your test runner tells you what passed. UI Iceberg helps you find what you never tested—and v0.2 can reconcile that plan with real Playwright executions.
 
+## Try it in 60 seconds
+
+Requires Node.js 20+ and no account or hosted service.
+
+```bash
+git clone https://github.com/cyrillesaxo/ICEBERG.git
+cd ICEBERG
+npm install
+npm run demo:quickstart
+```
+
+The bundled checkout fixture intentionally has a small passing-looking test set. UI Iceberg maps that source evidence against a broader checkout journey and should surface high-value gaps such as interruption/resumption, duplicate-order protection, recovery, session, mobile, and accessibility scenarios.
+
+Typical shape of the output:
+
+```text
+UI ICEBERG
+checkout journey
+────────────────────────────────────────────
+Existing tests        ...
+Important scenarios   ...
+Candidate covered     ...
+Partial               ...
+Missing               ...
+
+HIGH-VALUE GAPS
+? Leave checkout for OTP or bank verification and return with state intact
+? Refresh after payment success without creating a duplicate order
+...
+
+TEST NEXT
+<highest-value currently unverified scenario>
+```
+
+Static matching is deliberately labeled **candidate evidence**. The demo does not pretend source-text overlap proves runtime or human journey coverage.
+
 ## Project identity
 
 - **Project:** UI Iceberg
@@ -35,15 +71,9 @@ A team can have hundreds of passing UI tests and still miss payment retries, dup
 
 The difficult upstream problem is often not execution. It is **scenario design and unknown coverage**.
 
-## Quick start
-
-Requires Node.js 20+.
+## Use it on your own repository
 
 ```bash
-git clone https://github.com/cyrillesaxo/ICEBERG.git
-cd ICEBERG
-npm install
-
 node packages/cli/bin/ui-iceberg.js scan .
 node packages/cli/bin/ui-iceberg.js scenarios checkout
 node packages/cli/bin/ui-iceberg.js gaps checkout .
@@ -160,6 +190,18 @@ A linked Playwright pass establishes that a linked browser test ran and its asse
 
 **Unknown is not PASS.**
 
+## Get involved
+
+The project is intentionally opening contribution surfaces early.
+
+- Browse [`good first issue`](https://github.com/cyrillesaxo/ICEBERG/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) tasks.
+- Browse [`help wanted`](https://github.com/cyrillesaxo/ICEBERG/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) tasks.
+- Propose a **journey scenario pack** through the repository issue forms.
+- Propose a **testing-tool / coding-agent integration**.
+- Contribute a **reproducible false-convergence benchmark fixture** or counterexample.
+
+We especially value counterexamples that show where the current scenario model overreaches, misses an important edge, or assigns too much evidentiary weight to a proxy. Contributors are acknowledged in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
 ## Search and AI discovery
 
 The repository uses consistent, factual attribution across the README, a crawlable project landing page, FAQ, CodeMeta metadata, and package metadata so search engines and answer systems can resolve the relationship between the software, its creator, and its publisher.
@@ -192,7 +234,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md). Software/research citation metadata is available in [CITATION.cff](CITATION.cff).
 
 ## License
 
