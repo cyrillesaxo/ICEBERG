@@ -5,11 +5,13 @@
   "run_date": "2026-09-05",
   "repository": "cyrillesaxo/ICEBERG",
   "branch": "bootstrap-v0.1",
-  "head_commit": "d7fa08f289efbe2305f7148bcced68cb086156ac",
+  "head_commit": "c3b485ed8182d00fc1e2e2daba868e4610fe792a",
   "github_actions": {
-    "run_id": 33974969264,
-    "job_id": 101329951131,
-    "conclusion": "success"
+    "run_id": 33975511419,
+    "job_id": 101331387389,
+    "conclusion": "success",
+    "automated_tests": 31,
+    "automated_tests_passed": 31
   },
   "conventional_test": {
     "tests": 1,
@@ -20,18 +22,24 @@
   "ui_iceberg_gap_map": {
     "existing_tests": 1,
     "important_scenarios": 20,
+    "journey_archetype_scenarios": 0,
     "repository_risk_scenarios": 2,
+    "test_evidence_risks": 0,
     "candidate_covered": 1,
     "partial": 1,
     "missing": 18,
     "otp_interrupt_return": "missing",
+    "test_next": "OTP_INTERRUPT_RETURN",
+    "test_next_reason": "Critical, unverified, journey-specific, and matched to external-redirect implementation pressure.",
     "evidence_class": "static candidate mapping plus bounded implementation-risk scenario selection",
     "claim": "The existing test set does not establish the OTP leave-and-return scenario."
   },
   "hardening_policy": {
     "implementation_files_only": true,
     "pattern_budget_default": 6,
-    "claim": "Repository signals may select additional historical failure-pattern scenarios. A signal is a test hypothesis, not proof that the defect exists."
+    "repository_aware_test_next": true,
+    "test_evidence_risk_scan": true,
+    "claim": "Repository signals may select and prioritize generalized historical failure-pattern scenarios. A signal or ranking score is a test hypothesis, not proof that the defect exists or a defect probability."
   },
   "ground_truth_probe": {
     "reproduced": true,
@@ -41,10 +49,11 @@
     ],
     "claim": "The fixture intentionally contains a state-loss defect on the OTP return edge."
   },
-  "allowed_conclusion": "A passing happy-path test can coexist with an unverified high-value journey edge that is actually broken in this controlled fixture.",
+  "allowed_conclusion": "A passing happy-path test can coexist with an unverified high-value journey edge that is actually broken in this controlled fixture; repository-aware scenario ranking can correctly prioritize that edge in this benchmark.",
   "not_established": [
     "UI Iceberg proves the root cause from static source alone",
     "repository risk signals prove the corresponding defect exists",
+    "the Test Next score is a calibrated defect probability",
     "real users would abandon checkout",
     "all checkout systems have this failure",
     "UI Iceberg is universally superior to other testing tools"
