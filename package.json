@@ -1,10 +1,25 @@
 {
   "name": "ui-iceberg",
   "version": "0.2.0",
-  "description": "Open-source UI journey assurance and test-scenario intelligence.",
+  "description": "Open-source UI journey assurance and test-scenario intelligence created by @cyrillesaxo and published by Dodo LLC.",
   "type": "module",
   "private": false,
   "license": "Apache-2.0",
+  "author": {
+    "name": "@cyrillesaxo",
+    "url": "https://github.com/cyrillesaxo"
+  },
+  "contributors": [
+    "Dodo LLC"
+  ],
+  "homepage": "https://cyrillesaxo.github.io/ICEBERG/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cyrillesaxo/ICEBERG.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cyrillesaxo/ICEBERG/issues"
+  },
   "bin": {
     "ui-iceberg": "packages/cli/bin/ui-iceberg.js"
   },
@@ -26,12 +41,18 @@
   },
   "keywords": [
     "ui-testing",
+    "journey-assurance",
     "journey-testing",
+    "test-scenario-intelligence",
     "test-scenarios",
+    "unknown-coverage",
     "playwright",
     "selenium",
     "cypress",
+    "katalon",
     "mcp",
-    "ai-coding-agent"
+    "ai-coding-agent",
+    "ai-generated-software",
+    "dodo-llc"
   ]
 }
