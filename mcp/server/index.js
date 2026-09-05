@@ -6,7 +6,7 @@ import { emitPlaywrightScenarioSpec, verifyJourneyWithPlaywright } from "../../p
 export const MCP_TOOLS = Object.freeze([
   {
     name: "scan_repository",
-    description: "Inspect a UI repository and report detected test tools plus candidate critical user journeys.",
+    description: "Inspect a UI repository and report detected test tools, candidate critical user journeys, and a bounded implementation-risk fingerprint used for scenario hardening.",
     inputSchema: {
       type: "object",
       properties: { path: { type: "string", description: "Repository path. Defaults to current working directory." } },
@@ -15,27 +15,30 @@ export const MCP_TOOLS = Object.freeze([
   },
   {
     name: "generate_scenarios",
-    description: "Generate a prioritized UI scenario plan for a user journey such as checkout, signup, login, password reset, or subscription cancellation.",
+    description: "Generate a prioritized UI scenario plan. If a repository path is provided, add a bounded set of repository-relevant failure scenarios from implementation signals; those signals are hypotheses, not proof of defects.",
     inputSchema: {
       type: "object",
       required: ["journey"],
       properties: {
         journey: { type: "string" },
-        limit: { type: "integer", minimum: 1, maximum: 100 }
+        path: { type: "string", description: "Optional repository path for repository-aware hardening." },
+        limit: { type: "integer", minimum: 1, maximum: 100 },
+        patternLimit: { type: "integer", minimum: 1, maximum: 20 }
       },
       additionalProperties: false
     }
   },
   {
     name: "find_gaps",
-    description: "Map a prioritized journey scenario set against existing repository tests and return candidate coverage gaps. Results are evidence candidates, not proof of coverage.",
+    description: "Map a prioritized journey scenario set against existing repository tests and return candidate coverage gaps, including bounded repository-risk scenarios. Results are evidence candidates, not proof of coverage or defects.",
     inputSchema: {
       type: "object",
       required: ["journey"],
       properties: {
         journey: { type: "string" },
         path: { type: "string" },
-        limit: { type: "integer", minimum: 1, maximum: 100 }
+        limit: { type: "integer", minimum: 1, maximum: 100 },
+        patternLimit: { type: "integer", minimum: 1, maximum: 20 }
       },
       additionalProperties: false
     }
@@ -56,7 +59,7 @@ export const MCP_TOOLS = Object.freeze([
   },
   {
     name: "verify_journey",
-    description: "Reconcile a Playwright JSON runtime report with the UI Iceberg scenario plan. Explicit scenario links are stronger than lexical runtime candidates; flaky passes remain flaky.",
+    description: "Reconcile a Playwright JSON runtime report with the repository-aware UI Iceberg scenario plan. Explicit scenario links are stronger than lexical runtime candidates; flaky passes remain flaky.",
     inputSchema: {
       type: "object",
       required: ["journey", "report"],
@@ -74,8 +77,24 @@ export const MCP_TOOLS = Object.freeze([
 
 export async function callTool(name, input = {}) {
   if (name === "scan_repository") return scanRepository(input.path || process.cwd());
-  if (name === "generate_scenarios") return generateScenarios(input.journey, { limit: input.limit });
-  if (name === "find_gaps") return analyzeJourneyGaps(input.path || process.cwd(), input.journey, { limit: input.limit });
+  if (name === "generate_scenarios") {
+    let riskSignals = [];
+    if (input.path) {
+      const scan = await scanRepository(input.path);
+      riskSignals = scan.riskSignals;
+    }
+    return generateScenarios(input.journey, {
+      limit: input.limit,
+      patternLimit: input.patternLimit,
+      riskSignals
+    });
+  }
+  if (name === "find_gaps") {
+    return analyzeJourneyGaps(input.path || process.cwd(), input.journey, {
+      limit: input.limit,
+      patternLimit: input.patternLimit
+    });
+  }
   if (name === "generate_test_spec") return emitPlaywrightScenarioSpec(input.journey, { limit: input.limit });
   if (name === "verify_journey") return verifyJourneyWithPlaywright(input.path || process.cwd(), input.journey, input.report, { limit: input.limit });
   throw new Error(`Unknown tool: ${name}`);
