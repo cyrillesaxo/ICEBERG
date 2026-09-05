@@ -1,6 +1,9 @@
 #!/usr/bin/env node
+import fs from "node:fs/promises";
+import path from "node:path";
 import process from "node:process";
 import { analyzeJourneyGaps, generateScenarios, scanRepository } from "../../core/src/index.js";
+import { emitPlaywrightScenarioSpec, verifyJourneyWithPlaywright } from "../../runtime/src/index.js";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -8,18 +11,31 @@ const json = args.includes("--json");
 const values = args.filter((arg) => !arg.startsWith("--"));
 
 function printHelp() {
-  console.log(`UI Iceberg v0.1\n\nFind what your UI tests forgot to test.\n\nUsage:\n  ui-iceberg scan [path] [--json]\n  ui-iceberg scenarios <journey> [--limit=N] [--json]\n  ui-iceberg gaps <journey> [path] [--limit=N] [--json]\n\nExamples:\n  ui-iceberg scan .\n  ui-iceberg scenarios checkout\n  ui-iceberg gaps checkout .\n`);
+  console.log(`UI Iceberg v0.2\n\nFind what your UI tests forgot to test.\n\nUsage:\n  ui-iceberg scan [path] [--json]\n  ui-iceberg scenarios <journey> [--limit=N] [--json]\n  ui-iceberg gaps <journey> [path] [--limit=N] [--json]\n  ui-iceberg emit <journey> --adapter=playwright [--out=path] [--limit=N] [--json]\n  ui-iceberg verify <journey> [path] --report=playwright.json [--json]\n\nExamples:\n  ui-iceberg scan .\n  ui-iceberg scenarios checkout\n  ui-iceberg gaps checkout .\n  ui-iceberg emit checkout --adapter=playwright --out=tests/checkout.ui-iceberg.spec.js\n  ui-iceberg verify checkout . --report=.ui-iceberg/playwright.json\n`);
+}
+
+function optionValue(name) {
+  const raw = args.find((arg) => arg.startsWith(`--${name}=`));
+  return raw ? raw.slice(raw.indexOf("=") + 1) : undefined;
 }
 
 function optionNumber(name) {
-  const raw = args.find((arg) => arg.startsWith(`--${name}=`));
+  const raw = optionValue(name);
   if (!raw) return undefined;
-  const value = Number(raw.split("=")[1]);
+  const value = Number(raw);
   return Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 function icon(state) {
   return state === "candidate-covered" ? "✓" : state === "partial" ? "~" : state === "missing" ? "?" : "·";
+}
+
+function runtimeIcon(state) {
+  if (state === "linked-pass") return "✓";
+  if (state === "linked-fail") return "✕";
+  if (state === "linked-flaky") return "~";
+  if (state === "runtime-candidate") return "?";
+  return "·";
 }
 
 function printScan(result) {
@@ -68,6 +84,29 @@ function printGaps(result) {
   console.log(`\nEvidence note: ${result.evidencePolicy.statement}`);
 }
 
+function printVerify(result) {
+  console.log(`UI ICEBERG\n${result.journey.replaceAll("_", " ")} runtime check\n${"─".repeat(44)}`);
+  console.log(`Status                ${result.status}`);
+  console.log(`Playwright tests      ${result.runtimeTestsObserved}`);
+  console.log(`Linked pass           ${result.runtimeSummary["linked-pass"]}`);
+  console.log(`Flaky pass            ${result.runtimeSummary["linked-flaky"]}`);
+  console.log(`Linked fail           ${result.runtimeSummary["linked-fail"]}`);
+  console.log(`Runtime candidates    ${result.runtimeSummary["runtime-candidate"]}`);
+  console.log(`Unverified            ${result.runtimeSummary.unverified}`);
+
+  const risks = result.verificationGaps.slice(0, 8);
+  console.log("\nVERIFY / FIX NEXT");
+  if (!risks.length) console.log("  No remaining scenario-level runtime gaps in the bounded plan.");
+  for (const item of risks) {
+    console.log(`\n${runtimeIcon(item.runtimeEvidence.state)} ${item.title}`);
+    console.log(`  Priority: ${item.priority.toUpperCase()} | Runtime: ${item.runtimeEvidence.state}`);
+    console.log(`  Why: ${item.why}`);
+  }
+
+  if (result.testNext) console.log(`\nTEST NEXT\n${result.testNext.title}`);
+  console.log(`\nEvidence note: ${result.evidencePolicy.runtime}`);
+}
+
 try {
   if (!command || command === "help" || args.includes("--help") || args.includes("-h")) {
     printHelp();
@@ -98,6 +137,35 @@ try {
     const result = await analyzeJourneyGaps(root, journey, { limit: optionNumber("limit") });
     if (json) console.log(JSON.stringify(result, null, 2));
     else printGaps(result);
+    process.exit(0);
+  }
+
+  if (command === "emit") {
+    const journey = values[1];
+    if (!journey) throw new Error("emit requires a journey, e.g. `ui-iceberg emit checkout --adapter=playwright`");
+    const adapter = optionValue("adapter") || "playwright";
+    if (adapter !== "playwright") throw new Error(`Unsupported adapter in v0.2: ${adapter}`);
+    const result = emitPlaywrightScenarioSpec(journey, { limit: optionNumber("limit") });
+    const out = optionValue("out");
+    if (out) {
+      const resolved = path.resolve(out);
+      await fs.mkdir(path.dirname(resolved), { recursive: true });
+      await fs.writeFile(resolved, result.content, "utf8");
+      if (json) console.log(JSON.stringify({ ...result, content: undefined, outputPath: resolved }, null, 2));
+      else console.log(`UI Iceberg wrote ${result.scenarios.length} skipped Playwright scenario scaffolds to ${resolved}`);
+    } else if (json) console.log(JSON.stringify(result, null, 2));
+    else console.log(result.content);
+    process.exit(0);
+  }
+
+  if (command === "verify") {
+    const journey = values[1];
+    if (!journey) throw new Error("verify requires a journey, e.g. `ui-iceberg verify checkout . --report=.ui-iceberg/playwright.json`");
+    const root = values[2] || ".";
+    const report = optionValue("report");
+    const result = await verifyJourneyWithPlaywright(root, journey, report, { limit: optionNumber("limit") });
+    if (json) console.log(JSON.stringify(result, null, 2));
+    else printVerify(result);
     process.exit(0);
   }
 

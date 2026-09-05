@@ -1,6 +1,6 @@
 {
   "name": "ui-iceberg",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Open-source UI journey assurance and test-scenario intelligence.",
   "type": "module",
   "private": false,
@@ -11,11 +11,13 @@
   "exports": {
     ".": "./packages/core/src/index.js",
     "./scenarios": "./packages/scenarios/src/catalog.js",
+    "./runtime": "./packages/runtime/src/index.js",
+    "./playwright": "./packages/adapters/playwright/src/index.js",
     "./mcp": "./mcp/server/index.js"
   },
   "scripts": {
     "test": "node --test",
-    "check": "node --check packages/cli/bin/ui-iceberg.js && node --check packages/core/src/index.js && node --check packages/scenarios/src/catalog.js && node --check mcp/server/index.js",
+    "check": "node --check packages/cli/bin/ui-iceberg.js && node --check packages/core/src/index.js && node --check packages/scenarios/src/catalog.js && node --check packages/runtime/src/index.js && node --check packages/adapters/playwright/src/index.js && node --check mcp/server/index.js",
     "mcp": "node mcp/server/index.js",
     "demo": "node packages/cli/bin/ui-iceberg.js scenarios checkout"
   },

@@ -9,19 +9,30 @@
 - MCP tools for coding agents
 - JSON output for automation
 
-## v0.2 — Runtime evidence
+## v0.2 — Playwright runtime evidence
 
-- Playwright adapter
-- Semantic target identity
-- Interaction readiness vector
-- Explicit test-to-scenario linkage
-- Runtime state manifest
-- Stronger coverage receipts
+Implemented in the bootstrap branch:
+
+- Playwright JSON reporter adapter
+- explicit test-to-scenario linkage
+- retry-dependent `linked-flaky` state instead of false PASS
+- runtime candidate evidence kept separate from explicit linkage
+- skipped-by-default Playwright scenario scaffold generation
+- `verify` CLI command
+- `generate_test_spec` and `verify_journey` MCP tools
+- bounded runtime journey status with explicit evidence caveats
+
+Next hardening within the runtime line:
+
+- semantic target identity extraction from Playwright locators
+- interaction-readiness/actionability receipts
+- runtime StateManifest / StateMissSet
+- per-project/browser pressure coverage
 
 ## v0.3 — Journey stress
 
-- Interruption/resumption
-- Slow/failing network
+- interruption/resumption
+- slow/failing network
 - refresh/back/forward
 - session expiry
 - mobile/zoom/text-scale projections
@@ -32,7 +43,6 @@
 - ReactivationImpactGraph
 - TERM evidence expiry
 - affected-journey selection
-- flaky-pass classification
 - pull-request journey report
 
 ## Later

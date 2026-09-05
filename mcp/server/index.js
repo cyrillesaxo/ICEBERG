@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import readline from "node:readline";
 import { analyzeJourneyGaps, generateScenarios, scanRepository } from "../../packages/core/src/index.js";
+import { emitPlaywrightScenarioSpec, verifyJourneyWithPlaywright } from "../../packages/runtime/src/index.js";
 
 export const MCP_TOOLS = Object.freeze([
   {
@@ -38,6 +39,36 @@ export const MCP_TOOLS = Object.freeze([
       },
       additionalProperties: false
     }
+  },
+  {
+    name: "generate_test_spec",
+    description: "Generate a skipped Playwright scaffold for prioritized UI Iceberg scenarios. The agent must implement product-specific actions/assertions before enabling tests.",
+    inputSchema: {
+      type: "object",
+      required: ["journey"],
+      properties: {
+        journey: { type: "string" },
+        adapter: { type: "string", enum: ["playwright"] },
+        limit: { type: "integer", minimum: 1, maximum: 100 }
+      },
+      additionalProperties: false
+    }
+  },
+  {
+    name: "verify_journey",
+    description: "Reconcile a Playwright JSON runtime report with the UI Iceberg scenario plan. Explicit scenario links are stronger than lexical runtime candidates; flaky passes remain flaky.",
+    inputSchema: {
+      type: "object",
+      required: ["journey", "report"],
+      properties: {
+        journey: { type: "string" },
+        path: { type: "string" },
+        report: { type: "string", description: "Path to a Playwright JSON reporter output." },
+        adapter: { type: "string", enum: ["playwright"] },
+        limit: { type: "integer", minimum: 1, maximum: 100 }
+      },
+      additionalProperties: false
+    }
   }
 ]);
 
@@ -45,6 +76,8 @@ export async function callTool(name, input = {}) {
   if (name === "scan_repository") return scanRepository(input.path || process.cwd());
   if (name === "generate_scenarios") return generateScenarios(input.journey, { limit: input.limit });
   if (name === "find_gaps") return analyzeJourneyGaps(input.path || process.cwd(), input.journey, { limit: input.limit });
+  if (name === "generate_test_spec") return emitPlaywrightScenarioSpec(input.journey, { limit: input.limit });
+  if (name === "verify_journey") return verifyJourneyWithPlaywright(input.path || process.cwd(), input.journey, input.report, { limit: input.limit });
   throw new Error(`Unknown tool: ${name}`);
 }
 
@@ -65,7 +98,7 @@ export async function handleRpc(message) {
       result: {
         protocolVersion: params.protocolVersion || "2025-06-18",
         capabilities: { tools: {} },
-        serverInfo: { name: "ui-iceberg", version: "0.1.0" }
+        serverInfo: { name: "ui-iceberg", version: "0.2.0" }
       }
     };
   }
