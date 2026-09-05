@@ -109,17 +109,17 @@ Preserve these states exactly:
 
 ## MCP server
 
-Start the experimental stdio server from the UI Iceberg repository:
+Start the stdio server from the UI Iceberg repository:
 
 ```bash
 npm run mcp
 ```
 
-It exposes five tools.
+The v0.3 MCP surface exposes nine tools and supports both the legacy 2025 handshake and modern MCP `2026-07-28` `server/discover` discovery.
 
-### `scan_repository`
+### Planning and evidence collection
 
-Input:
+#### `scan_repository`
 
 ```json
 {
@@ -127,11 +127,9 @@ Input:
 }
 ```
 
-`path` defaults to the current working directory.
+Detects candidate journeys, implementation pressures, test tools, and evidence risks. Static signals remain hypotheses.
 
-### `generate_scenarios`
-
-Input:
+#### `generate_scenarios`
 
 ```json
 {
@@ -142,11 +140,9 @@ Input:
 }
 ```
 
-`journey` is required. `path`, `limit`, and `patternLimit` are optional.
+Generates a bounded scenario plan. `journey` is required.
 
-### `find_gaps`
-
-Input:
+#### `find_gaps`
 
 ```json
 {
@@ -157,11 +153,27 @@ Input:
 }
 ```
 
-`journey` is required. The result includes prioritized gaps and a `testNext` candidate.
+Maps candidate evidence and returns prioritized gaps. Do not treat static candidate mapping as verification.
 
-### `generate_test_spec`
+#### `select_first_bite`
 
-Input:
+```json
+{
+  "gaps": [
+    {
+      "id": "OTP_INTERRUPT_RETURN",
+      "priority": "critical",
+      "evidence": { "state": "missing", "score": 0 },
+      "source": "journey-profile"
+    }
+  ],
+  "riskSignals": ["external-redirect", "browser-persistence"]
+}
+```
+
+Returns the smallest high-value next discriminating scenario. The score is a test-priority heuristic, not defect probability.
+
+#### `generate_test_spec`
 
 ```json
 {
@@ -173,9 +185,7 @@ Input:
 
 Returns a skipped Playwright scenario scaffold.
 
-### `verify_journey`
-
-Input:
+#### `verify_journey`
 
 ```json
 {
@@ -187,7 +197,102 @@ Input:
 }
 ```
 
-`journey` and `report` are required.
+Reconciles Playwright runtime evidence with the scenario model. `linked-flaky` stays flaky.
+
+### Assurance and change control
+
+#### `admit_evidence`
+
+```json
+{
+  "claim": {
+    "id": "cart-preserved-after-otp",
+    "statement": "Cart state survives the OTP interruption and return."
+  },
+  "scope": "technical-ui-runtime",
+  "evidence": [
+    {
+      "id": "E1",
+      "state": "linked-pass",
+      "channel": "playwright"
+    }
+  ],
+  "antiwitnesses": []
+}
+```
+
+Possible verdicts are `ADMITTED_WITH_SCOPE`, `REJECTED`, and `INCONCLUSIVE`.
+
+A technical runtime admission does not license cognitive usability, accessibility completeness, production journey health, causal root cause, or business outcome. Candidate evidence and flaky execution remain inconclusive.
+
+#### `reactivation_impact`
+
+```json
+{
+  "changedFiles": ["src/payment/callback.js"],
+  "changedSignals": ["external-redirect"],
+  "scenarios": [
+    {
+      "id": "OTP_INTERRUPT_RETURN",
+      "evidence": { "state": "linked-pass" },
+      "dependencies": {
+        "files": ["src/payment/callback.js"],
+        "signals": ["external-redirect"]
+      }
+    }
+  ]
+}
+```
+
+Returns scenarios whose prior assurance state should be reactivated. Unmapped changed files remain `unknown`; they are not silently classified as unaffected.
+
+#### `issue_receipt`
+
+```json
+{
+  "project": "checkout-app",
+  "journey": "checkout",
+  "testNext": { "id": "OTP_INTERRUPT_RETURN" },
+  "admission": { "verdict": "ADMITTED_WITH_SCOPE" },
+  "allowedConclusion": "The linked technical browser scenario passed in the supplied run.",
+  "notEstablished": ["cognitive usability", "production conversion"],
+  "residualUnknowns": ["real-user interruption rate"]
+}
+```
+
+Returns a deterministic `receipt://...` handle and preserves the supplied evidence boundary.
+
+## Recommended MCP sequence
+
+```text
+scan_repository
+      ↓
+find_gaps
+      ↓
+select_first_bite
+      ↓
+generate_test_spec
+      ↓
+execute probe in the real product/executor
+      ↓
+verify_journey
+      ↓
+admit_evidence
+      ↓
+issue_receipt
+      ↓
+code changes later
+      ↓
+reactivation_impact
+```
+
+The MCP is an executable assurance interface, not the source of truth by itself. Evidence comes from the repository, runtime executor, controlled probe, or licensed human/task channel.
+
+## MCP 2026-07-28 behavior
+
+Modern requests carry `io.modelcontextprotocol/protocolVersion=2026-07-28` in request `_meta`. The server implements `server/discover`, stamps server identity in response `_meta`, and returns cache hints on `tools/list`.
+
+The server retains the older `initialize` path for compatibility with 2025-era clients. It does not advertise the Tasks extension yet because current ICEBERG operations are synchronous. Do not claim task support until a real asynchronous/durable execution path exists.
 
 ## Built-in journey normalization
 
