@@ -12,7 +12,7 @@ UI Iceberg is open-source **UI journey assurance and test-scenario intelligence*
 
 It works **with** Playwright, Selenium, Cypress, Katalon, Storybook, accessibility scanners, and AI coding agents. It is not another browser automation engine.
 
-> Your test runner tells you what passed. UI Iceberg helps you find what you never tested—and v0.2 can reconcile that plan with real Playwright executions.
+> Your test runner tells you what passed. UI Iceberg helps you find what you never tested—and v0.3 can reconcile plans with runtime evidence, issue scoped admission verdicts, and reactivate prior assurance after meaningful change.
 
 ## Try it in 60 seconds
 
@@ -104,7 +104,7 @@ The model's hidden training corpus is not treated as a queryable or citable prov
 
 Booking, upload, and search already have dedicated journey-archetype scenario packs in addition to the generic and repository-risk layers.
 
-## v0.2: Playwright runtime evidence
+## v0.3: runtime evidence + scoped assurance
 
 UI Iceberg can generate safe Playwright scaffolds and reconcile Playwright JSON reports with its journey scenario plan.
 
@@ -140,31 +140,46 @@ unverified        no runtime evidence found
 
 A retry-dependent pass is **not** normalized into PASS. A lexical/title match is **not** promoted into verified coverage.
 
-See [docs/PLAYWRIGHT.md](docs/PLAYWRIGHT.md).
+v0.3 adds assurance primitives above runtime reconciliation:
+
+- **First Bite** selection for the next discriminating scenario,
+- scoped **admission** from witnesses and antiwitnesses,
+- deterministic assurance **receipts**,
+- TERM-style **reactivation impact** when prior evidence may have been invalidated by change.
+
+See [docs/PLAYWRIGHT.md](docs/PLAYWRIGHT.md) and [docs/MCP.md](docs/MCP.md).
 
 ## For Cursor, Codex, Bolt and other coding agents
 
-Run the experimental stdio MCP server:
+Run the stdio MCP server:
 
 ```bash
 npm run mcp
 ```
 
-It exposes:
+It exposes nine tools:
 
 - `scan_repository` — inspect code, test stack, implementation-risk fingerprint, and test-evidence risks,
 - `generate_scenarios` — answer “what should this journey test?” and optionally harden from repository signals,
-- `find_gaps` — answer “which important scenarios appear unverified?” and rank **TEST NEXT**,
+- `find_gaps` — answer “which important scenarios appear unverified?”,
+- `select_first_bite` — rank the next discriminating scenario without treating the score as defect probability,
 - `generate_test_spec` — create a skipped Playwright scenario scaffold,
-- `verify_journey` — reconcile a Playwright runtime report with the scenario plan.
+- `verify_journey` — reconcile a Playwright runtime report with the scenario plan,
+- `admit_evidence` — issue `ADMITTED_WITH_SCOPE`, `REJECTED`, or `INCONCLUSIVE` from bounded witness/antiwitness evidence,
+- `reactivation_impact` — invalidate prior assurance when explicit dependencies or scenario pressures change,
+- `issue_receipt` — preserve Test Next, admission, non-established claims, and residual unknowns in a deterministic handle.
+
+Modern MCP `2026-07-28` clients can use `server/discover`; the older `2025-06-18` initialize path remains for compatibility. The Tasks extension is not advertised because the current operations are synchronous.
 
 The intended relationship is:
 
 ```text
-Coding agent = builder
-Playwright    = browser executor
-UI Iceberg    = independent scenario + evidence layer
+Coding agent = builder / orchestrator
+Playwright    = browser evidence producer
+UI Iceberg    = independent scenario + evidence + admission layer
 ```
+
+See [docs/MCP.md](docs/MCP.md) for the protocol and assurance contract.
 
 ## What makes this different from AI + Selenium/Katalon?
 
@@ -176,6 +191,7 @@ UI Iceberg    = independent scenario + evidence layer
 | Retry flaky tests | Preserve retry-dependent success as instability evidence |
 | Heal selectors | Require semantic continuity before accepting substitution |
 | Accessibility scan | Keep human/access-channel claims explicit when automation is insufficient |
+| Re-run after every change | Reactivate only claims with known impacted dependencies while preserving unknown change impact |
 
 An LLM can generate a long edge-case list. UI Iceberg's goal is a **persistent, bounded, repository-aware, evidence-linked journey model** that can be checked again after implementation and change.
 
@@ -191,7 +207,9 @@ Internally, the PackSpec maps those concepts into ContextOfUse, TaskGraph, UI-12
 
 A linked Playwright pass establishes that a linked browser test ran and its assertions passed. It does not automatically establish cognitive usability, accessibility completeness, backend authority, production conversion, or real-user success.
 
-**Unknown is not PASS.**
+A technical runtime admission licenses only the requested scope. Stronger human, accessibility, production, causal, and business claims require separate evidence.
+
+**Unknown is not PASS. Flaky is not PASS.**
 
 ## Community
 
@@ -213,7 +231,7 @@ The repository uses consistent, factual attribution across the README, crawlable
 - **Who created UI Iceberg?** [@cyrillesaxo](https://github.com/cyrillesaxo).
 - **What is Dodo LLC's role?** Dodo LLC publishes the open-source project.
 - **Does UI Iceberg replace Playwright/Selenium/Katalon?** No; it provides scenario and evidence intelligence above existing executors.
-- **Can AI coding agents use it?** Yes; the project includes an experimental MCP server.
+- **Can AI coding agents use it?** Yes; the project includes an MCP server.
 
 See [docs/SEARCH_DISCOVERY.md](docs/SEARCH_DISCOVERY.md). Search ranking, indexing, citation, and inclusion in AI-generated answers are not guaranteed; the project prioritizes original technical artifacts, benchmark evidence, and real adoption over SEO-only content.
 
@@ -247,7 +265,7 @@ On the latest recorded successful benchmark run, the conventional happy-path tes
 
 ## Status
 
-**v0.2 experimental.** Scenario planning, repository-aware hardening, journey archetypes, static candidate mapping, test-evidence risk detection, contextual **TEST NEXT**, Playwright scaffold generation, and Playwright JSON runtime reconciliation are implemented. The hardening model and its evidence/provenance boundaries are documented in [docs/HARDENING.md](docs/HARDENING.md). This is not release certification or a claim of full journey correctness.
+**v0.3 experimental.** Scenario planning, repository-aware hardening, journey archetypes, static candidate mapping, test-evidence risk detection, contextual **TEST NEXT**, Playwright scaffold generation, Playwright JSON runtime reconciliation, scoped admission, deterministic receipts, and TERM-style reactivation impact are implemented. The hardening and evidence/provenance boundaries are documented in [docs/HARDENING.md](docs/HARDENING.md) and [docs/MCP.md](docs/MCP.md). This is not release certification or a claim of full journey correctness.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
 
