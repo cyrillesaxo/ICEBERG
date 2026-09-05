@@ -65,7 +65,23 @@ In the controlled UI-006 benchmark, this mechanism prioritizes the missing OTP l
 
 The generalized pattern library can use broad software/UI failure knowledge represented in the model and maintained by project contributors, but the model's hidden training corpus is not a queryable provenance database. UI Iceberg therefore does not label entries as `observed in training data` or cite unverifiable training examples.
 
-For public defensibility, patterns should gain explicit provenance over time from reproducible fixtures, external-repository counterexamples, public incident reports, standards, tool documentation, and research where licensing permits derived taxonomy work.
+For public defensibility, every important pattern should progressively acquire **public provenance** from reproducible fixtures, external-repository counterexamples, public incident reports, standards, tool documentation, and research where licensing permits derived taxonomy work.
+
+That creates a hardening loop:
+
+```text
+generalized pattern
+      ↓
+public/reproducible witness
+      ↓
+false-positive + discrimination measurement
+      ↓
+keep / narrow / split / retire
+      ↓
+versioned scenario library
+```
+
+The model can help seed hypotheses; the open evidence corpus should decide which ones survive.
 
 ## Current hardening path
 
