@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { prioritizeScenarioGaps, scenarioContextSignalMap } from "../../core/src/prioritize.js";
+import { auditDeceptiveWitnesses, inspectDeceptiveWitness, listDeceptiveWitnessRules } from "./deceptive-witness.js";
 
 const STRONG_SUPPORT_STATES = new Set(["linked-pass", "runtime-pass", "reproduced-witness", "verified"]);
 const STRONG_ANTI_STATES = new Set(["linked-fail", "runtime-fail", "reproduced-antiwitness"]);
@@ -25,7 +26,10 @@ function normalizeEvidence(item = {}, index = 0) {
     channel: item.channel || null,
     source: item.source || null,
     scope: item.scope || null,
-    note: item.note || null
+    scenarioId: item.scenarioId || null,
+    note: item.note || null,
+    evidenceRisks: item.evidenceRisks || item.risks || [],
+    characteristics: item.characteristics || {}
   };
 }
 
@@ -40,14 +44,49 @@ function evidenceStateCounts(evidence) {
   }, {});
 }
 
-export function selectFirstBite(gaps = [], riskSignals = []) {
+export function selectFirstBite(gaps = [], riskSignals = [], options = {}) {
   const ranked = prioritizeScenarioGaps(gaps, riskSignals);
+  const deceptiveAudit = auditDeceptiveWitnesses(options.deceptiveWitnesses || []);
+  const testNext = ranked[0] || null;
+  const deceptionNext = deceptiveAudit.firstDeceptionProbe;
+  const sameScenarioDeception = Boolean(
+    testNext && deceptionNext && deceptionNext.scenarioId && deceptionNext.scenarioId === testNext.id
+  );
+
   return {
-    schema: "ui-iceberg-first-bite-v0.3",
-    testNext: ranked[0] || null,
+    schema: "ui-iceberg-first-bite-v0.4",
+    testNext,
     alternatives: ranked.slice(1, 4),
     considered: ranked.length,
-    boundary: "First Bite ranks discriminating test hypotheses. It is not a defect probability, proof of user impact, or admission verdict."
+    deceptiveWitnessNext: deceptionNext,
+    recommendedNext: sameScenarioDeception
+      ? {
+          kind: "DECEPTIVE_WITNESS_PROBE",
+          scenarioId: testNext.id,
+          probe: deceptionNext.recommendedProbe,
+          reason: "The highest-value scenario gap is also supported by a witness whose evidence channel can overstate the requested claim. Probe the distortion before admitting the apparent support."
+        }
+      : testNext
+        ? {
+            kind: "SCENARIO_GAP_PROBE",
+            scenarioId: testNext.id,
+            probe: testNext,
+            reason: "The highest-ranked scenario gap remains the smallest bounded next test; deceptive-witness probes are exposed separately when they concern other claims."
+          }
+        : deceptionNext
+          ? {
+              kind: "DECEPTIVE_WITNESS_PROBE",
+              scenarioId: deceptionNext.scenarioId || null,
+              probe: deceptionNext.recommendedProbe,
+              reason: "No scenario gap was supplied, but an apparent witness has a claim-blocking evidence-channel distortion worth discriminating."
+            }
+          : null,
+    deceptiveWitnessAudit: {
+      total: deceptiveAudit.total,
+      counts: deceptiveAudit.counts,
+      taxonomyStatus: deceptiveAudit.taxonomyStatus
+    },
+    boundary: "First Bite ranks discriminating test hypotheses and can prioritize a deceptive-witness probe when it directly contaminates the top scenario claim. It is not a defect probability, proof of user impact, or admission verdict."
   };
 }
 
@@ -63,14 +102,30 @@ export function admitEvidence(input = {}) {
   const unresolved = evidence.filter((item) => UNRESOLVED_STATES.has(item.state));
   const strongAntiwitnesses = antiwitnesses.filter((item) => STRONG_ANTI_STATES.has(item.state) || item.state === "verified");
 
+  const supportingAudits = supporting.map((item) => inspectDeceptiveWitness({
+    claim,
+    scope,
+    witness: item,
+    evidenceRisks: item.evidenceRisks,
+    characteristics: item.characteristics
+  }));
+  const cleanSupporting = supportingAudits.filter((audit) => audit.classification === "CLEAN_WITNESS");
+  const weakenedSupporting = supportingAudits.filter((audit) => audit.classification === "WEAKENED_WITNESS");
+  const deceptiveSupporting = supportingAudits.filter((audit) => audit.classification === "DECEPTIVE_WITNESS_CANDIDATE");
+  const eligibleSupporting = [...cleanSupporting, ...weakenedSupporting];
+
   let verdict = "INCONCLUSIVE";
   let rationale = "No strong runtime witness or antiwitness licenses the claim.";
   if (strongAntiwitnesses.length) {
     verdict = "REJECTED";
     rationale = "At least one strong antiwitness contradicts the requested claim within the evaluated scope.";
-  } else if (supporting.length && flaky.length === 0) {
+  } else if (eligibleSupporting.length && flaky.length === 0) {
     verdict = "ADMITTED_WITH_SCOPE";
-    rationale = "Strong supporting runtime evidence exists and no strong antiwitness or flaky-only conflict was supplied.";
+    rationale = deceptiveSupporting.length
+      ? "At least one strong witness still licenses the requested scope after deceptive-witness filtering; other apparent witnesses were weakened or excluded from licensing."
+      : "Strong supporting runtime evidence exists and no strong antiwitness, claim-blocking deceptive witness, or flaky-only conflict prevents scoped admission.";
+  } else if (supporting.length && deceptiveSupporting.length === supporting.length) {
+    rationale = "Nominally green runtime evidence exists, but every strong supporting witness has a claim-blocking evidence-channel distortion for the requested scope.";
   } else if (supporting.length && flaky.length) {
     rationale = "Supporting runtime evidence exists, but retry-dependent/flaky evidence preserves a material contradiction in execution stability.";
   } else if (flaky.length) {
@@ -78,25 +133,38 @@ export function admitEvidence(input = {}) {
   }
 
   const licenses = Object.fromEntries(DEFAULT_LICENSES.map((name) => [name, "unknown"]));
+  if (!(scope in licenses)) licenses[scope] = "unknown";
   licenses[scope] = verdict === "ADMITTED_WITH_SCOPE" ? "admitted" : verdict === "REJECTED" ? "rejected" : "unknown";
 
   const unresolvedInterpretations = uniq([
     ...unresolved.map((item) => `${item.id}:${item.state}`),
     ...(supporting.length === 0 && strongAntiwitnesses.length === 0 ? ["no-strong-runtime-witness"] : []),
-    ...(flaky.length ? ["retry-dependent-execution"] : [])
+    ...(flaky.length ? ["retry-dependent-execution"] : []),
+    ...deceptiveSupporting.map((audit) => `${audit.witnessId || "witness"}:deceptive-witness:${audit.distortions.map((item) => item.distortion).join("+")}`)
   ]);
+
+  const deceptiveWitnessAudit = {
+    taxonomyStatus: "bounded-public-subset",
+    totalSupporting: supportingAudits.length,
+    cleanSupporting: cleanSupporting.map((audit) => audit.witnessId),
+    weakenedSupporting: weakenedSupporting.map((audit) => audit.witnessId),
+    deceptiveSupporting: deceptiveSupporting.map((audit) => audit.witnessId),
+    audits: supportingAudits,
+    firstDeceptionProbe: deceptiveSupporting.find((audit) => audit.recommendedProbe) || null
+  };
 
   const receiptCore = {
     claim,
     scope,
     evidence,
     antiwitnesses,
+    deceptiveWitnessAudit,
     verdict,
     licenses
   };
 
   return {
-    schema: "ui-iceberg-admission-v0.3",
+    schema: "ui-iceberg-admission-v0.4",
     receiptId: `admission://${stableHash(receiptCore)}`,
     claim,
     requestedScope: scope,
@@ -105,16 +173,19 @@ export function admitEvidence(input = {}) {
     evidenceSummary: {
       total: evidence.length,
       states: evidenceStateCounts(evidence),
-      strongSupportingWitnesses: supporting.map((item) => item.id),
+      nominalStrongSupportingWitnesses: supporting.map((item) => item.id),
+      licensingSupportingWitnesses: eligibleSupporting.map((audit) => audit.witnessId),
+      deceptiveSupportingWitnesses: deceptiveSupporting.map((audit) => audit.witnessId),
       strongAntiwitnesses: strongAntiwitnesses.map((item) => item.id),
       flakyWitnesses: flaky.map((item) => item.id)
     },
+    deceptiveWitnessAudit,
     licenses,
     semanticEntropy: {
       unresolvedCount: unresolvedInterpretations.length,
       unresolvedInterpretations
     },
-    boundary: "Admission is scoped to the supplied claim, evidence, and evidence channel. It does not inherit stronger human, accessibility, production, causal, or business claims unless separately licensed."
+    boundary: "Admission is scoped to the supplied claim, evidence, and evidence channel. Nominally green evidence is filtered for bounded deceptive-witness distortions before licensing. This does not inherit stronger human, accessibility, production, causal, or business claims unless separately licensed."
   };
 }
 
@@ -176,7 +247,7 @@ export function analyzeReactivationImpact(input = {}) {
   if (!scenarios.length) unknownImpact.push("no-scenario-dependency-state-supplied");
 
   return {
-    schema: "ui-iceberg-reactivation-impact-v0.3",
+    schema: "ui-iceberg-reactivation-impact-v0.4",
     reactivated,
     unaffected,
     unknown: {
@@ -195,11 +266,12 @@ export function analyzeReactivationImpact(input = {}) {
 
 export function issueAssuranceReceipt(input = {}) {
   const receipt = {
-    schema: "ui-iceberg-assurance-receipt-v0.3",
+    schema: "ui-iceberg-assurance-receipt-v0.4",
     project: input.project || null,
     journey: input.journey || null,
     scan: input.scan || null,
     gapMap: input.gapMap || null,
+    deceptiveWitnessAudit: input.deceptiveWitnessAudit || input.admission?.deceptiveWitnessAudit || null,
     testNext: input.testNext || null,
     admission: input.admission || null,
     reactivation: input.reactivation || null,
@@ -210,6 +282,8 @@ export function issueAssuranceReceipt(input = {}) {
   return {
     ...receipt,
     receiptId: `receipt://${stableHash(receipt)}`,
-    boundary: "The receipt preserves the supplied evidence boundary. Missing evidence, unknown dependencies, flaky execution, and unlicensed claim scopes remain explicit."
+    boundary: "The receipt preserves the supplied evidence boundary, including deceptive-witness filtering. Missing evidence, unknown dependencies, flaky execution, evidence-channel distortion, and unlicensed claim scopes remain explicit."
   };
 }
+
+export { auditDeceptiveWitnesses, inspectDeceptiveWitness, listDeceptiveWitnessRules };

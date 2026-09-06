@@ -56,7 +56,7 @@ A stable scenario ID is linked to an executed test.
 - `linked-flaky`: the linked test only passed after retry.
 - `linked-fail`: the linked execution failed.
 
-Even `linked-pass` licenses only what the test actually asserts.
+Even `linked-pass` is only a **nominal witness candidate** until the evidence channel is checked against the requested claim scope.
 
 ### 5. Reproduced defect or invariant witness
 
@@ -64,36 +64,51 @@ A discriminating probe demonstrates the targeted failure or demonstrates the rep
 
 This is stronger than source matching but still bounded by context, data, viewport, role, locale, timing, and evidence channel.
 
-## Witnesses and antiwitnesses
+## Witness, deceptive witness, and antiwitness
 
-A **witness** is evidence that supports a specific claim under stated conditions.
+A **witness** supports a specific claim under stated conditions.
 
-An **antiwitness** is evidence that contradicts or narrows that claim.
+A **deceptive witness candidate** appears to support a claim, often through a green result, but its evidence channel licenses a weaker statement than the claim being inferred.
+
+An **antiwitness** contradicts or narrows the claim under stated conditions.
+
+Do not collapse these states.
 
 Examples:
 
-- Witness: a linked Playwright test demonstrates that a checkout draft survives a modeled OTP leave-and-return sequence.
-- Antiwitness: the same scenario fails on mobile Safari or after a session refresh.
-- Antiwitness: a test passes only after retry, narrowing a claim of deterministic stability.
+- Witness: a real linked Playwright leave-and-return probe asserts that the persisted draft survives the tested OTP return boundary.
+- Deceptive witness candidate: a linked green test uses a mocked OTP callback while the claim concerns real authority continuity.
+- Antiwitness: the real return probe reproduces cart-state loss.
+- Antiwitness/narrowing evidence: retry-dependent execution contradicts a claim of deterministic stability.
 
-Do not delete or average away antiwitnesses merely to produce a clean PASS.
+## Bounded deceptive-witness classifications
 
-## Deceptive-green evidence
+v0.4 uses:
 
-A green test can overstate what was observed when its evidence channel is weak or distorted.
+- `CLEAN_WITNESS`
+- `WEAKENED_WITNESS`
+- `DECEPTIVE_WITNESS_CANDIDATE`
+- `NON_WITNESS_OBLIGATION`
+- `ANTIWITNESS`
+- `UNKNOWN_WITNESS`
 
-Repository evidence-risk signals currently include patterns such as:
+The executable classifier covers only the bounded public subset derived from current test-evidence-risk detectors. The PackSpec validation receipt references a larger 72-item research taxonomy, but the full normative definitions are not yet vendored. Never claim full 72-rule execution from the current repository.
 
-- fixed waits;
-- forced actions;
-- skipped or focused tests;
-- retries;
-- network mocks;
-- visual-only oracles;
-- index-based targets;
-- soft-assertion configurations.
+Current executable distortion families include:
 
-These patterns are not defects in the product. They are reasons to reduce the claim license of the test result.
+| Evidence risk | Distortion | Typical claim weakened |
+| --- | --- | --- |
+| fixed wait | `TEMPORAL_ASSUMPTION` | readiness / deterministic stability |
+| forced action | `ACTIONABILITY_BYPASS` | natural user actionability |
+| skipped test | `NON_EXECUTION_PRESENTED_AS_COVERAGE` | runtime/suite completeness |
+| focused test | `SUITE_EXCLUSION` | full-suite evidence |
+| retry / flaky | `RETRY_LAUNDERING` | deterministic stability |
+| network mock | `AUTHORITY_SUBSTITUTION` | real authority / production path |
+| visual-only oracle | `ORACLE_SCOPE_NARROWING` | semantic/task/accessibility correctness |
+| index-based target | `SEMANTIC_IDENTITY_DRIFT` | stable target identity |
+| soft/failure-tolerant assertion pattern | `ASSERTION_FAILURE_MASKING` | assertion/run integrity |
+
+These patterns are not product defects. They are reasons to narrow or withhold claim licensing until a discriminating probe resolves the ambiguity.
 
 Examples:
 
@@ -114,6 +129,22 @@ screenshot match + green result
 !=
 keyboard focus, semantic target identity, or task completion was correct
 ```
+
+## The signature loop
+
+When apparent support is distorted, use:
+
+```text
+apparent witness
+  -> deceptive-witness check
+  -> semantic entropy
+  -> First Bite
+  -> discriminating probe
+  -> witness / antiwitness
+  -> scoped admission
+```
+
+If the deceptive witness refers to the same scenario as the current top gap, prefer the distortion-specific First Bite probe before admitting the apparent support.
 
 ## Runtime candidate versus explicit linkage
 
@@ -136,6 +167,7 @@ Entropy rises when multiple materially different explanations remain plausible, 
 - the same visual control maps to different semantic targets across pages;
 - a route transition can restore more than one incompatible state;
 - a test passes under one mocked authority path but the real authority behavior is unknown;
+- a nominal witness has a claim-blocking evidence distortion;
 - several candidate selectors could refer to different entities;
 - a regression's affected journeys are uncertain.
 
@@ -153,11 +185,20 @@ Do not assume historical PASS remains current after a meaningful dependency chan
 
 Admission is the decision about whether available evidence is sufficient for a specific claim.
 
-An admission decision must name its scope.
+An admission decision must name its scope and must filter nominally strong witnesses through the deceptive-witness check when relevant evidence risks are known.
+
+Rules:
+
+- a clean witness can license its requested scope;
+- a weakened witness can license the requested scope when its known distortions do not block that scope;
+- a deceptive-witness candidate cannot license the blocked scope by itself;
+- if every nominal strong witness is deceptive for the requested scope, keep the verdict `INCONCLUSIVE`;
+- a clean independent witness can still license the scope while deceptive witnesses remain explicit;
+- a strong antiwitness yields `REJECTED` for the evaluated claim/scope.
 
 Good:
 
-> Admitted for the tested desktop checkout leave-and-return scenario: explicit linked Playwright execution passed without retry and the persisted draft assertion held.
+> Admitted for the tested desktop checkout leave-and-return scenario: explicit linked Playwright execution passed without retry, the evidence channel did not block the requested scope, and the persisted draft assertion held.
 
 Bad:
 
@@ -173,7 +214,8 @@ When evidence is insufficient, prefer `INCONCLUSIVE`/`UNVERIFIED` over manufactu
 | Static lexical match | candidate evidence | runtime covered |
 | Partial test | some behavior represented | full invariant established |
 | Runtime candidate | relevant test executed | scenario explicitly covered |
-| Linked clean pass | linked assertions passed | all UX/accessibility/backend outcomes are correct |
+| Linked clean pass | linked assertions passed; then inspect channel vs claim | all UX/accessibility/backend outcomes are correct |
+| Linked pass + claim-blocking deceptive distortion | narrower channel claim may hold | requested broader claim is admitted |
 | Linked flaky pass | scenario showed retry-dependent success | stable PASS |
 | Linked fail | execution failed | root cause is proven without diagnosis |
 | Reproduced targeted probe | failure/invariant observed under tested conditions | universal product state established |
@@ -186,8 +228,9 @@ Before accepting any strong conclusion, ask internally:
 2. Which scenario ID or invariant does the evidence address?
 3. Is the evidence static, runtime, human-observed, accessibility-specific, visual, backend-authoritative, or mixed?
 4. What conditions were actually exercised?
-5. Is there conflicting evidence?
-6. Is the witness still fresh after recent changes?
-7. What remains unknown?
+5. Does the evidence channel contain a deceptive-witness distortion for this claim scope?
+6. Is there conflicting evidence or an antiwitness?
+7. Is the witness still fresh after recent changes?
+8. What remains unknown?
 
 The purpose is not to make every result inconclusive. It is to make each conclusion exactly as strong as its evidence.

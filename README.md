@@ -1,18 +1,19 @@
 # UI Iceberg
 
-**Find what your UI tests forgot to test.**
+**Find what your UI tests forgot to test — and when green evidence is answering the wrong question.**
 
 > **UI Iceberg is created by [@cyrillesaxo](https://github.com/cyrillesaxo) and published by Dodo LLC.**
 
-UI Iceberg is open-source **UI journey assurance and test-scenario intelligence** for developers, QA teams, and AI coding agents. It helps answer three practical questions:
+UI Iceberg is open-source **UI journey assurance and test-scenario intelligence** for developers, QA teams, and AI coding agents. It helps answer four practical questions:
 
 1. **What should I test?**
 2. **What important scenarios am I missing?**
-3. **Which of those scenarios actually ran and passed?**
+3. **Which scenarios actually ran and passed?**
+4. **Does that green evidence really license the claim I am making?**
 
 It works **with** Playwright, Selenium, Cypress, Katalon, Storybook, accessibility scanners, and AI coding agents. It is not another browser automation engine.
 
-> Your test runner tells you what passed. UI Iceberg helps you find what you never tested—and v0.3 can reconcile plans with runtime evidence, issue scoped admission verdicts, and reactivate prior assurance after meaningful change.
+> Your test runner tells you what passed. UI Iceberg helps find what you never tested, checks whether apparent green witnesses overstate their evidence channel, selects a discriminating First Bite, issues scoped admission verdicts, and reactivates prior assurance after meaningful change.
 
 ## Try it in 60 seconds
 
@@ -50,7 +51,9 @@ See [docs/PROJECT_IDENTITY.md](docs/PROJECT_IDENTITY.md) for the canonical attri
 
 A team can have hundreds of passing UI tests and still miss payment retries, duplicate submits, OTP leave-and-return flows, session expiry, refresh/back state loss, recovery paths, mobile/zoom failures, asymmetric cancellation friction, and other journey edges that no existing test represents.
 
-The difficult upstream problem is often not execution. It is **scenario design and unknown coverage**.
+Even when a relevant test is green, its evidence channel can be weaker than the claim inferred from it. A forced action can bypass real actionability. A mocked authority can bypass a real integration boundary. A screenshot oracle can miss semantic identity or task completion. A retry-dependent pass can hide instability.
+
+The difficult upstream problem is often not execution. It is **scenario design, unknown coverage, and evidence licensing**.
 
 ## Use it on your own repository
 
@@ -104,7 +107,7 @@ The model's hidden training corpus is not treated as a queryable or citable prov
 
 Booking, upload, and search already have dedicated journey-archetype scenario packs in addition to the generic and repository-risk layers.
 
-## v0.3: runtime evidence + scoped assurance
+## v0.4: deceptive witnesses + scoped assurance
 
 UI Iceberg can generate safe Playwright scaffolds and reconcile Playwright JSON reports with its journey scenario plan.
 
@@ -140,14 +143,32 @@ unverified        no runtime evidence found
 
 A retry-dependent pass is **not** normalized into PASS. A lexical/title match is **not** promoted into verified coverage.
 
-v0.3 adds assurance primitives above runtime reconciliation:
+v0.4 adds a bounded deceptive-witness layer before admission:
 
-- **First Bite** selection for the next discriminating scenario,
-- scoped **admission** from witnesses and antiwitnesses,
+```text
+apparent green witness
+      ↓
+claim-aware deceptive-witness check
+      ↓
+clean / weakened / deceptive / antiwitness / unknown
+      ↓
+First Bite discriminating probe
+      ↓
+scoped admission
+```
+
+The executable public subset currently recognizes evidence distortions derived from the existing test-risk detectors, including actionability bypass, authority substitution, retry laundering, temporal assumption, suite exclusion, visual-oracle scope narrowing, semantic-identity drift, and assertion-failure masking.
+
+The PackSpec validation receipt references a larger 72-item research taxonomy. That full normative taxonomy is **not** yet vendored into this repository, so v0.4 does not pretend to execute all 72 definitions.
+
+Other assurance primitives include:
+
+- **First Bite** selection for the next discriminating scenario or distortion probe,
+- scoped **admission** from witnesses and antiwitnesses after deceptive-witness filtering,
 - deterministic assurance **receipts**,
 - TERM-style **reactivation impact** when prior evidence may have been invalidated by change.
 
-See [docs/PLAYWRIGHT.md](docs/PLAYWRIGHT.md) and [docs/MCP.md](docs/MCP.md).
+See [docs/DECEPTIVE_WITNESS.md](docs/DECEPTIVE_WITNESS.md), [docs/PLAYWRIGHT.md](docs/PLAYWRIGHT.md), and [docs/MCP.md](docs/MCP.md).
 
 ## For Cursor, Codex, Bolt and other coding agents
 
@@ -157,17 +178,18 @@ Run the stdio MCP server:
 npm run mcp
 ```
 
-It exposes nine tools:
+It exposes ten tools:
 
 - `scan_repository` — inspect code, test stack, implementation-risk fingerprint, and test-evidence risks,
 - `generate_scenarios` — answer “what should this journey test?” and optionally harden from repository signals,
 - `find_gaps` — answer “which important scenarios appear unverified?”,
-- `select_first_bite` — rank the next discriminating scenario without treating the score as defect probability,
+- `check_deceptive_witness` — test whether an apparent witness licenses the requested claim scope or is distorted by its evidence channel,
+- `select_first_bite` — rank the next discriminating scenario/probe without treating the score as defect probability,
 - `generate_test_spec` — create a skipped Playwright scenario scaffold,
 - `verify_journey` — reconcile a Playwright runtime report with the scenario plan,
-- `admit_evidence` — issue `ADMITTED_WITH_SCOPE`, `REJECTED`, or `INCONCLUSIVE` from bounded witness/antiwitness evidence,
+- `admit_evidence` — issue `ADMITTED_WITH_SCOPE`, `REJECTED`, or `INCONCLUSIVE` after bounded deceptive-witness filtering,
 - `reactivation_impact` — invalidate prior assurance when explicit dependencies or scenario pressures change,
-- `issue_receipt` — preserve Test Next, admission, non-established claims, and residual unknowns in a deterministic handle.
+- `issue_receipt` — preserve deceptive-witness state, Test Next, admission, non-established claims, and residual unknowns in a deterministic handle.
 
 Modern MCP `2026-07-28` clients can use `server/discover`; the older `2025-06-18` initialize path remains for compatibility. The Tasks extension is not advertised because the current operations are synchronous.
 
@@ -188,6 +210,7 @@ See [docs/MCP.md](docs/MCP.md) for the protocol and assurance contract.
 | Execute browser actions | Determine which journey conditions deserve evidence |
 | Generate test code | Generate and prioritize a persistent scenario model |
 | Count passed tests | Map evidence against important journey states/edges |
+| Trust green tests at face value | Check whether the witness channel actually licenses the inferred claim |
 | Retry flaky tests | Preserve retry-dependent success as instability evidence |
 | Heal selectors | Require semantic continuity before accepting substitution |
 | Accessibility scan | Keep human/access-channel claims explicit when automation is insufficient |
@@ -201,15 +224,15 @@ The default surface stays familiar:
 
 **Journey → Steps → Scenarios → Coverage gaps → Test next → Verify**
 
-Internally, the PackSpec maps those concepts into ContextOfUse, TaskGraph, UI-12, UX-12, state/pressure matrices, MissSet, First Bite, WitnessGraph, admission, replay, and TERM. See [docs/VOCABULARY.md](docs/VOCABULARY.md).
+Internally, the PackSpec maps those concepts into ContextOfUse, TaskGraph, UI-12, UX-12, state/pressure matrices, MissSet, First Bite, WitnessGraph, deceptive witnesses, admission, replay, and TERM. See [docs/VOCABULARY.md](docs/VOCABULARY.md).
 
 ## Evidence discipline
 
-A linked Playwright pass establishes that a linked browser test ran and its assertions passed. It does not automatically establish cognitive usability, accessibility completeness, backend authority, production conversion, or real-user success.
+A linked Playwright pass establishes that a linked browser test ran and its assertions passed. It does not automatically establish natural actionability, real authority behavior, semantic target identity, cognitive usability, accessibility completeness, production conversion, or real-user success.
 
-A technical runtime admission licenses only the requested scope. Stronger human, accessibility, production, causal, and business claims require separate evidence.
+A technical runtime admission licenses only the requested scope after the supplied evidence channel is checked. Stronger human, accessibility, production, causal, and business claims require separate evidence.
 
-**Unknown is not PASS. Flaky is not PASS.**
+**Unknown is not PASS. Flaky is not PASS. Nominally green is not automatically admissible.**
 
 ## Community
 
@@ -221,7 +244,7 @@ We are looking for early testers and counterexamples, not just stars.
 - [Contributing guide](CONTRIBUTING.md)
 - [Contributors](CONTRIBUTORS.md)
 
-Useful contributions include a scenario the tool missed, a noisy recommendation, another executor/integration, or a small reproducible false-convergence fixture.
+Useful contributions include a scenario the tool missed, a noisy recommendation, a deceptive-witness counterexample, another executor/integration, or a small reproducible false-convergence fixture.
 
 ## Search and AI discovery
 
@@ -237,7 +260,7 @@ See [docs/SEARCH_DISCOVERY.md](docs/SEARCH_DISCOVERY.md). Search ranking, indexi
 
 ## Research foundation
 
-The product is backed by the UI Iceberg PackSpec research line. v0.7.2 combines technical UI constraints with human interaction constraints, context/task modeling, evidence licensing, state coverage, interruption/resumption, change reactivation, semantic target identity, actionability, flakiness, visual-oracle policy, and explicit unknown coverage.
+The product is backed by the UI Iceberg PackSpec research line. v0.7.2 combines technical UI constraints with human interaction constraints, context/task modeling, evidence licensing, state coverage, interruption/resumption, change reactivation, semantic target identity, actionability, flakiness, visual-oracle policy, deceptive witnesses, and explicit unknown coverage.
 
 The PackSpec stays underneath the simple product funnel so users do not need to learn research vocabulary before receiving value.
 
@@ -265,7 +288,7 @@ On the latest recorded successful benchmark run, the conventional happy-path tes
 
 ## Status
 
-**v0.3 experimental.** Scenario planning, repository-aware hardening, journey archetypes, static candidate mapping, test-evidence risk detection, contextual **TEST NEXT**, Playwright scaffold generation, Playwright JSON runtime reconciliation, scoped admission, deterministic receipts, and TERM-style reactivation impact are implemented. The hardening and evidence/provenance boundaries are documented in [docs/HARDENING.md](docs/HARDENING.md) and [docs/MCP.md](docs/MCP.md). This is not release certification or a claim of full journey correctness.
+**v0.4 experimental.** Scenario planning, repository-aware hardening, journey archetypes, static candidate mapping, test-evidence risk detection, bounded deceptive-witness checking, deceptive-witness-aware First Bite, Playwright scaffold generation, Playwright JSON runtime reconciliation, scoped admission, deterministic receipts, and TERM-style reactivation impact are implemented. The current deceptive-witness engine is a bounded public subset, not the unvendored full 72-item research taxonomy. This is not release certification or a claim of full journey correctness.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
 

@@ -6,6 +6,7 @@ import { emitPlaywrightScenarioSpec, verifyJourneyWithPlaywright } from "../../p
 import {
   admitEvidence,
   analyzeReactivationImpact,
+  inspectDeceptiveWitness,
   issueAssuranceReceipt,
   selectFirstBite
 } from "../../packages/assurance/src/index.js";
@@ -15,10 +16,25 @@ export const MCP_PROTOCOLS = Object.freeze({
   legacy: "2025-06-18"
 });
 
-export const MCP_SERVER_INFO = Object.freeze({ name: "ui-iceberg", version: "0.3.0" });
+export const MCP_SERVER_INFO = Object.freeze({ name: "ui-iceberg", version: "0.4.0" });
 
 const SERVER_INFO_META_KEY = "io.modelcontextprotocol/serverInfo";
 const PROTOCOL_VERSION_META_KEY = "io.modelcontextprotocol/protocolVersion";
+
+const EVIDENCE_RISK_SCHEMA = {
+  anyOf: [
+    { type: "string" },
+    {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        severity: { type: "string" },
+        boundary: { type: "string" }
+      },
+      additionalProperties: true
+    }
+  ]
+};
 
 const EVIDENCE_ITEM_SCHEMA = {
   type: "object",
@@ -28,15 +44,31 @@ const EVIDENCE_ITEM_SCHEMA = {
     channel: { type: "string" },
     source: { type: "string" },
     scope: { type: "string" },
-    note: { type: "string" }
+    scenarioId: { type: "string" },
+    note: { type: "string" },
+    evidenceRisks: { type: "array", items: EVIDENCE_RISK_SCHEMA },
+    characteristics: { type: "object", additionalProperties: { type: "boolean" } }
   },
   additionalProperties: true
+};
+
+const DECEPTIVE_WITNESS_INPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    claim: { type: "object", additionalProperties: true },
+    scope: { type: "string" },
+    scenarioId: { type: "string" },
+    witness: EVIDENCE_ITEM_SCHEMA,
+    evidenceRisks: { type: "array", items: EVIDENCE_RISK_SCHEMA },
+    characteristics: { type: "object", additionalProperties: { type: "boolean" } }
+  },
+  additionalProperties: false
 };
 
 export const MCP_TOOLS = Object.freeze([
   {
     name: "scan_repository",
-    description: "Inspect a UI repository and report detected test tools, candidate critical user journeys, a bounded implementation-risk fingerprint, and test-evidence risks used for scenario hardening.",
+    description: "Inspect a UI repository and report detected test tools, candidate critical user journeys, a bounded implementation-risk fingerprint, and test-evidence risks used for scenario hardening and deceptive-witness checks.",
     inputSchema: {
       type: "object",
       properties: { path: { type: "string", description: "Repository path. Defaults to current working directory." } },
@@ -74,14 +106,23 @@ export const MCP_TOOLS = Object.freeze([
     }
   },
   {
+    name: "check_deceptive_witness",
+    description: "Inspect an apparent witness for bounded evidence-channel distortions such as forced action, authority substitution, retry laundering, visual-only oracle scope, or semantic target drift. The result weakens claim licensing but is not a product-defect verdict.",
+    inputSchema: {
+      ...DECEPTIVE_WITNESS_INPUT_SCHEMA,
+      required: ["witness"]
+    }
+  },
+  {
     name: "select_first_bite",
-    description: "Rank supplied gap scenarios and return the smallest highest-value next discriminating probe. The score is a testing recommendation, not a defect probability.",
+    description: "Rank supplied gap scenarios and return the smallest highest-value next discriminating probe. If a deceptive witness directly supports the top scenario claim, prefer a probe that tests the distortion before admission. The recommendation is not a defect probability.",
     inputSchema: {
       type: "object",
       required: ["gaps"],
       properties: {
         gaps: { type: "array", items: { type: "object", additionalProperties: true } },
-        riskSignals: { type: "array", items: { anyOf: [{ type: "string" }, { type: "object", additionalProperties: true }] } }
+        riskSignals: { type: "array", items: { anyOf: [{ type: "string" }, { type: "object", additionalProperties: true }] } },
+        deceptiveWitnesses: { type: "array", items: DECEPTIVE_WITNESS_INPUT_SCHEMA }
       },
       additionalProperties: false
     }
@@ -118,7 +159,7 @@ export const MCP_TOOLS = Object.freeze([
   },
   {
     name: "admit_evidence",
-    description: "Issue a scoped admission verdict from supplied witnesses and antiwitnesses. Unknown/candidate evidence and flaky execution never become PASS; stronger human, accessibility, production, causal, and business claims remain unlicensed unless separately evidenced.",
+    description: "Issue a scoped admission verdict from supplied witnesses and antiwitnesses after bounded deceptive-witness filtering. Unknown/candidate evidence, claim-blocking deceptive witnesses, and flaky execution never become PASS; stronger human, accessibility, production, causal, and business claims remain unlicensed unless separately evidenced.",
     inputSchema: {
       type: "object",
       required: ["claim", "evidence"],
@@ -147,7 +188,7 @@ export const MCP_TOOLS = Object.freeze([
   },
   {
     name: "issue_receipt",
-    description: "Create a compact deterministic ICEBERG assurance receipt linking scan, gap map, Test Next, admission, reactivation, allowed conclusion, non-established claims, and residual unknowns.",
+    description: "Create a compact deterministic ICEBERG assurance receipt linking scan, gap map, deceptive-witness audit, Test Next, admission, reactivation, allowed conclusion, non-established claims, and residual unknowns.",
     inputSchema: {
       type: "object",
       properties: {
@@ -155,6 +196,7 @@ export const MCP_TOOLS = Object.freeze([
         journey: { type: "string" },
         scan: { type: "object", additionalProperties: true },
         gapMap: { type: "object", additionalProperties: true },
+        deceptiveWitnessAudit: { type: "object", additionalProperties: true },
         testNext: { type: "object", additionalProperties: true },
         admission: { type: "object", additionalProperties: true },
         reactivation: { type: "object", additionalProperties: true },
@@ -193,7 +235,8 @@ export async function callTool(name, input = {}) {
     });
     return prioritizeGapReport(report);
   }
-  if (name === "select_first_bite") return selectFirstBite(input.gaps || [], input.riskSignals || []);
+  if (name === "check_deceptive_witness") return inspectDeceptiveWitness(input);
+  if (name === "select_first_bite") return selectFirstBite(input.gaps || [], input.riskSignals || [], { deceptiveWitnesses: input.deceptiveWitnesses || [] });
   if (name === "generate_test_spec") return emitPlaywrightScenarioSpec(input.journey, { limit: input.limit });
   if (name === "verify_journey") return verifyJourneyWithPlaywright(input.path || process.cwd(), input.journey, input.report, { limit: input.limit });
   if (name === "admit_evidence") return admitEvidence(input);
@@ -256,7 +299,7 @@ export async function handleRpc(message) {
       result: modernResult({
         supportedVersions: [MCP_PROTOCOLS.modern, MCP_PROTOCOLS.legacy],
         capabilities: { tools: {} },
-        instructions: "Use scan/gap tools to form bounded hypotheses, select_first_bite to choose the next discriminating probe, admit_evidence only after evidence exists, and reactivation_impact after meaningful changes. Unknown is not PASS; flaky is not PASS.",
+        instructions: "Use scan/gap tools to form bounded hypotheses, check_deceptive_witness before trusting apparent support, select_first_bite to choose the next discriminating probe, admit_evidence only after evidence exists, and reactivation_impact after meaningful changes. Unknown is not PASS; flaky is not PASS; nominally green is not automatically admissible.",
         ttlMs: 300000,
         cacheScope: "public"
       })
