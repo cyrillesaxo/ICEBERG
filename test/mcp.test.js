@@ -2,12 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { handleRpc, MCP_PROTOCOLS, MCP_TOOLS } from "../mcp/server/index.js";
 
-test("MCP exposes planning, gap, verification, admission, reactivation, and receipt tools", () => {
+test("MCP exposes planning, deceptive-witness, verification, admission, reactivation, and receipt tools", () => {
   const names = MCP_TOOLS.map((tool) => tool.name);
   assert.deepEqual(names, [
     "scan_repository",
     "generate_scenarios",
     "find_gaps",
+    "check_deceptive_witness",
     "select_first_bite",
     "generate_test_spec",
     "verify_journey",
@@ -20,13 +21,13 @@ test("MCP exposes planning, gap, verification, admission, reactivation, and rece
 test("legacy initialize remains compatible", async () => {
   const init = await handleRpc({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: MCP_PROTOCOLS.legacy } });
   assert.equal(init.result.serverInfo.name, "ui-iceberg");
-  assert.equal(init.result.serverInfo.version, "0.3.0");
+  assert.equal(init.result.serverInfo.version, "0.4.0");
   const list = await handleRpc({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
-  assert.equal(list.result.tools.length, 9);
+  assert.equal(list.result.tools.length, 10);
   assert.equal(list.result.resultType, undefined);
 });
 
-test("2026-07-28 server/discover advertises stateless modern MCP", async () => {
+test("2026-07-28 server/discover advertises deceptive-witness-first assurance flow", async () => {
   const discover = await handleRpc({
     jsonrpc: "2.0",
     id: "discover-1",
@@ -42,6 +43,7 @@ test("2026-07-28 server/discover advertises stateless modern MCP", async () => {
   assert.equal(discover.result.resultType, "complete");
   assert.ok(discover.result.supportedVersions.includes("2026-07-28"));
   assert.equal(discover.result._meta["io.modelcontextprotocol/serverInfo"].name, "ui-iceberg");
+  assert.match(discover.result.instructions, /check_deceptive_witness/i);
   assert.match(discover.result.instructions, /Unknown is not PASS/i);
 });
 
@@ -55,7 +57,7 @@ test("modern tools/list is cacheable and stamped with server identity", async ()
   assert.equal(response.result.resultType, "complete");
   assert.equal(response.result.cacheScope, "public");
   assert.equal(response.result.ttlMs, 300000);
-  assert.equal(response.result.tools.length, 9);
+  assert.equal(response.result.tools.length, 10);
 });
 
 test("unsupported modern protocol revision fails explicitly", async () => {
@@ -78,6 +80,29 @@ test("MCP generate_scenarios returns structured scenario data", async () => {
   assert.equal(response.result.isError, false);
   assert.equal(response.result.structuredContent.scenarios.length, 5);
   assert.ok(response.result.structuredContent.scenarios.some((item) => item.category === "agency"));
+});
+
+test("MCP check_deceptive_witness exposes the evidence distortion and probe", async () => {
+  const response = await handleRpc({
+    jsonrpc: "2.0",
+    id: 31,
+    method: "tools/call",
+    params: {
+      name: "check_deceptive_witness",
+      arguments: {
+        claim: { id: "checkout-otp", scope: "technical-ui-runtime" },
+        witness: {
+          id: "W1",
+          state: "linked-pass",
+          channel: "playwright",
+          evidenceRisks: ["NETWORK_MOCK"]
+        }
+      }
+    }
+  });
+  assert.equal(response.result.isError, false);
+  assert.equal(response.result.structuredContent.classification, "DECEPTIVE_WITNESS_CANDIDATE");
+  assert.equal(response.result.structuredContent.recommendedProbe.id, "PROBE_REAL_AUTHORITY_BOUNDARY");
 });
 
 test("MCP generate_test_spec returns Playwright tests skipped by default", async () => {
