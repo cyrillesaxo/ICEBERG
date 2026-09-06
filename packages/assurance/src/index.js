@@ -1,6 +1,12 @@
 import crypto from "node:crypto";
 import { prioritizeScenarioGaps, scenarioContextSignalMap } from "../../core/src/prioritize.js";
 import { auditDeceptiveWitnesses, inspectDeceptiveWitness, listDeceptiveWitnessRules } from "./deceptive-witness.js";
+import {
+  buildClaimChallenge,
+  buildPlainLanguageReview,
+  listDeceptionMechanisms,
+  listSemanticTypes
+} from "./semantic-claim.js";
 
 const STRONG_SUPPORT_STATES = new Set(["linked-pass", "runtime-pass", "reproduced-witness", "verified"]);
 const STRONG_ANTI_STATES = new Set(["linked-fail", "runtime-fail", "reproduced-antiwitness"]);
@@ -189,6 +195,51 @@ export function admitEvidence(input = {}) {
   };
 }
 
+export function reviewClaim(input = {}) {
+  const claim = input.claim || {};
+  const scope = input.scope || claim.scope || "technical-ui-runtime";
+  const evidence = (input.evidence || []).map(normalizeEvidence);
+  const admission = admitEvidence({ ...input, claim, scope, evidence });
+  const challenge = buildClaimChallenge({
+    claim,
+    semanticTypes: input.semanticTypes,
+    gapTypes: input.gapTypes,
+    scenario: input.scenario,
+    mechanismChecks: input.mechanismChecks,
+    audits: admission.deceptiveWitnessAudit?.audits || []
+  });
+
+  const deceptiveWitnesses = evidence.map((witness) => ({
+    claim,
+    scope,
+    scenarioId: witness.scenarioId,
+    witness,
+    evidenceRisks: witness.evidenceRisks,
+    characteristics: witness.characteristics
+  }));
+  const firstBite = (input.gaps || []).length
+    ? selectFirstBite(input.gaps, input.riskSignals || [], { deceptiveWitnesses })
+    : null;
+  const userFacing = buildPlainLanguageReview({
+    admission,
+    challenge,
+    nextScenario: firstBite?.testNext || null
+  });
+
+  const result = {
+    schema: "ui-iceberg-claim-review-v0.5",
+    userFacing
+  };
+  if (input.includeInternal === true) {
+    result.internal = {
+      admission,
+      challenge,
+      firstBite
+    };
+  }
+  return result;
+}
+
 function scenarioSignals(scenario, contextMap) {
   return uniq([
     ...(scenario.riskSignals || []),
@@ -266,12 +317,13 @@ export function analyzeReactivationImpact(input = {}) {
 
 export function issueAssuranceReceipt(input = {}) {
   const receipt = {
-    schema: "ui-iceberg-assurance-receipt-v0.4",
+    schema: "ui-iceberg-assurance-receipt-v0.5",
     project: input.project || null,
     journey: input.journey || null,
     scan: input.scan || null,
     gapMap: input.gapMap || null,
     deceptiveWitnessAudit: input.deceptiveWitnessAudit || input.admission?.deceptiveWitnessAudit || null,
+    claimReview: input.claimReview || null,
     testNext: input.testNext || null,
     admission: input.admission || null,
     reactivation: input.reactivation || null,
@@ -282,8 +334,16 @@ export function issueAssuranceReceipt(input = {}) {
   return {
     ...receipt,
     receiptId: `receipt://${stableHash(receipt)}`,
-    boundary: "The receipt preserves the supplied evidence boundary, including deceptive-witness filtering. Missing evidence, unknown dependencies, flaky execution, evidence-channel distortion, and unlicensed claim scopes remain explicit."
+    boundary: "The receipt preserves the supplied evidence boundary, including deceptive-witness filtering and claim-review state. Missing evidence, unknown dependencies, flaky execution, evidence-channel distortion, and unlicensed claim scopes remain explicit."
   };
 }
 
-export { auditDeceptiveWitnesses, inspectDeceptiveWitness, listDeceptiveWitnessRules };
+export {
+  auditDeceptiveWitnesses,
+  buildClaimChallenge,
+  buildPlainLanguageReview,
+  inspectDeceptiveWitness,
+  listDeceptionMechanisms,
+  listDeceptiveWitnessRules,
+  listSemanticTypes
+};
