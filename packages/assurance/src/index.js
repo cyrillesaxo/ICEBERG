@@ -7,6 +7,7 @@ import {
   listDeceptionMechanisms,
   listSemanticTypes
 } from "./semantic-claim.js";
+import { buildSemanticManifoldProjection } from "./semantic-manifold.js";
 
 const STRONG_SUPPORT_STATES = new Set(["linked-pass", "runtime-pass", "reproduced-witness", "verified"]);
 const STRONG_ANTI_STATES = new Set(["linked-fail", "runtime-fail", "reproduced-antiwitness"]);
@@ -25,7 +26,7 @@ function uniq(values) {
 }
 
 function normalizeEvidence(item = {}, index = 0) {
-  if (typeof item === "string") return { id: `E-${index + 1}`, state: item };
+  if (typeof item === "string") return { id: `E-${index + 1}`, state: item, semanticTypes: [] };
   return {
     id: item.id || `E-${index + 1}`,
     state: item.state || "unknown",
@@ -34,6 +35,7 @@ function normalizeEvidence(item = {}, index = 0) {
     scope: item.scope || null,
     scenarioId: item.scenarioId || null,
     note: item.note || null,
+    semanticTypes: item.semanticTypes || item.gapTypes || [],
     evidenceRisks: item.evidenceRisks || item.risks || [],
     characteristics: item.characteristics || {}
   };
@@ -199,7 +201,8 @@ export function reviewClaim(input = {}) {
   const claim = input.claim || {};
   const scope = input.scope || claim.scope || "technical-ui-runtime";
   const evidence = (input.evidence || []).map(normalizeEvidence);
-  const admission = admitEvidence({ ...input, claim, scope, evidence });
+  const antiwitnesses = (input.antiwitnesses || []).map((item, index) => normalizeEvidence(item, index));
+  const admission = admitEvidence({ ...input, claim, scope, evidence, antiwitnesses });
   const challenge = buildClaimChallenge({
     claim,
     semanticTypes: input.semanticTypes,
@@ -207,6 +210,20 @@ export function reviewClaim(input = {}) {
     scenario: input.scenario,
     mechanismChecks: input.mechanismChecks,
     audits: admission.deceptiveWitnessAudit?.audits || []
+  });
+
+  const semanticManifold = buildSemanticManifoldProjection({
+    claim,
+    semanticTypes: input.semanticTypes,
+    gapTypes: input.gapTypes,
+    semanticWeights: input.semanticWeights,
+    evidence,
+    antiwitnesses,
+    admission,
+    challenge,
+    previous: input.previousSemanticManifold || input.previousReceipt?.semanticManifold || null,
+    riskSignals: input.riskSignals || [],
+    pressures: input.pressures || []
   });
 
   const deceptiveWitnesses = evidence.map((witness) => ({
@@ -227,13 +244,14 @@ export function reviewClaim(input = {}) {
   });
 
   const result = {
-    schema: "ui-iceberg-claim-review-v0.5",
+    schema: "ui-iceberg-claim-review-v0.6",
     userFacing
   };
   if (input.includeInternal === true) {
     result.internal = {
       admission,
       challenge,
+      semanticManifold,
       firstBite
     };
   }
@@ -317,13 +335,14 @@ export function analyzeReactivationImpact(input = {}) {
 
 export function issueAssuranceReceipt(input = {}) {
   const receipt = {
-    schema: "ui-iceberg-assurance-receipt-v0.5",
+    schema: "ui-iceberg-assurance-receipt-v0.6",
     project: input.project || null,
     journey: input.journey || null,
     scan: input.scan || null,
     gapMap: input.gapMap || null,
     deceptiveWitnessAudit: input.deceptiveWitnessAudit || input.admission?.deceptiveWitnessAudit || null,
     claimReview: input.claimReview || null,
+    semanticManifold: input.semanticManifold || input.claimReview?.internal?.semanticManifold || null,
     testNext: input.testNext || null,
     admission: input.admission || null,
     reactivation: input.reactivation || null,
@@ -334,7 +353,7 @@ export function issueAssuranceReceipt(input = {}) {
   return {
     ...receipt,
     receiptId: `receipt://${stableHash(receipt)}`,
-    boundary: "The receipt preserves the supplied evidence boundary, including deceptive-witness filtering and claim-review state. Missing evidence, unknown dependencies, flaky execution, evidence-channel distortion, and unlicensed claim scopes remain explicit."
+    boundary: "The receipt preserves the supplied evidence boundary, including deceptive-witness filtering, semantic-manifold state, and claim-review state. Missing evidence, unknown dependencies, flaky execution, evidence-channel distortion, and unlicensed claim scopes remain explicit."
   };
 }
 
@@ -342,6 +361,7 @@ export {
   auditDeceptiveWitnesses,
   buildClaimChallenge,
   buildPlainLanguageReview,
+  buildSemanticManifoldProjection,
   inspectDeceptiveWitness,
   listDeceptionMechanisms,
   listDeceptiveWitnessRules,
