@@ -4,6 +4,7 @@ import path from "node:path";
 import process from "node:process";
 import { analyzeJourneyGaps, generateScenarios, scanRepository } from "../../core/src/index.js";
 import { prioritizeScenarioGaps } from "../../core/src/prioritize.js";
+import { reviewClaim } from "../../assurance/src/index.js";
 import { emitPlaywrightScenarioSpec, verifyJourneyWithPlaywright } from "../../runtime/src/index.js";
 
 const args = process.argv.slice(2);
@@ -12,7 +13,7 @@ const json = args.includes("--json");
 const values = args.filter((arg) => !arg.startsWith("--"));
 
 function printHelp() {
-  console.log(`UI Iceberg v0.2\n\nFind what your UI tests forgot to test.\n\nUsage:\n  ui-iceberg scan [path] [--json]\n  ui-iceberg scenarios <journey> [path] [--limit=N] [--pattern-limit=N] [--json]\n  ui-iceberg gaps <journey> [path] [--limit=N] [--pattern-limit=N] [--json]\n  ui-iceberg emit <journey> --adapter=playwright [--out=path] [--limit=N] [--json]\n  ui-iceberg verify <journey> [path] --report=playwright.json [--json]\n\nExamples:\n  ui-iceberg scan .\n  ui-iceberg scenarios checkout .\n  ui-iceberg gaps checkout .\n  ui-iceberg emit checkout --adapter=playwright --out=tests/checkout.ui-iceberg.spec.js\n  ui-iceberg verify checkout . --report=.ui-iceberg/playwright.json\n`);
+  console.log(`UI Iceberg v0.5\n\nYour tests passed. Did the user journey?\n\nUsage:\n  ui-iceberg scan [path] [--json]\n  ui-iceberg scenarios <journey> [path] [--limit=N] [--pattern-limit=N] [--json]\n  ui-iceberg gaps <journey> [path] [--limit=N] [--pattern-limit=N] [--json]\n  ui-iceberg review --input=claim.json [--internal] [--json]\n  ui-iceberg emit <journey> --adapter=playwright [--out=path] [--limit=N] [--json]\n  ui-iceberg verify <journey> [path] --report=playwright.json [--json]\n\nExamples:\n  ui-iceberg scan .\n  ui-iceberg scenarios checkout .\n  ui-iceberg gaps checkout .\n  ui-iceberg review --input=.ui-iceberg/claim.json\n  ui-iceberg emit checkout --adapter=playwright --out=tests/checkout.ui-iceberg.spec.js\n  ui-iceberg verify checkout . --report=.ui-iceberg/playwright.json\n`);
 }
 
 function optionValue(name) {
@@ -123,6 +124,39 @@ function printGaps(result) {
   if (result.evidencePolicy.testEvidence) console.log(`Evidence-risk note: ${result.evidencePolicy.testEvidence}`);
 }
 
+function printReview(result) {
+  const view = result.userFacing || {};
+  console.log(`UI ICEBERG\nClaim review\n${"─".repeat(44)}`);
+  console.log(view.headline || "This claim still needs review.");
+
+  if (view.whatLooksGood?.length) {
+    console.log("\nWHAT LOOKS GOOD");
+    for (const item of view.whatLooksGood) console.log(`  ✓ ${item}`);
+  }
+
+  if (view.whyThisMayBeMisleading?.length) {
+    console.log("\nWHY THIS MAY STILL BE MISLEADING");
+    for (const item of view.whyThisMayBeMisleading) console.log(`  • ${item.reason}`);
+  }
+
+  if (view.bestNextCheck) {
+    console.log("\nBEST NEXT CHECK");
+    console.log(view.bestNextCheck.title);
+    console.log(`Why: ${view.bestNextCheck.why}`);
+    for (const step of view.bestNextCheck.steps || []) console.log(`  • ${step}`);
+  }
+
+  if (view.whatThisCheckCanTellYou) {
+    console.log("\nWHAT THIS CHECK CAN TELL YOU");
+    console.log(view.whatThisCheckCanTellYou);
+  }
+
+  if (view.stillUnknown?.length) {
+    console.log("\nSTILL UNKNOWN");
+    for (const item of view.stillUnknown) console.log(`  ? ${item}`);
+  }
+}
+
 function printVerify(result) {
   console.log(`UI ICEBERG\n${result.journey.replaceAll("_", " ")} runtime check\n${"─".repeat(44)}`);
   console.log(`Status                ${result.status}`);
@@ -193,11 +227,23 @@ try {
     process.exit(0);
   }
 
+  if (command === "review") {
+    const inputPath = optionValue("input") || values[1];
+    if (!inputPath) throw new Error("review requires --input=claim.json");
+    const raw = await fs.readFile(path.resolve(inputPath), "utf8");
+    const input = JSON.parse(raw);
+    if (args.includes("--internal")) input.includeInternal = true;
+    const result = reviewClaim(input);
+    if (json) console.log(JSON.stringify(result, null, 2));
+    else printReview(result);
+    process.exit(0);
+  }
+
   if (command === "emit") {
     const journey = values[1];
     if (!journey) throw new Error("emit requires a journey, e.g. `ui-iceberg emit checkout --adapter=playwright`");
     const adapter = optionValue("adapter") || "playwright";
-    if (adapter !== "playwright") throw new Error(`Unsupported adapter in v0.2: ${adapter}`);
+    if (adapter !== "playwright") throw new Error(`Unsupported adapter in v0.5: ${adapter}`);
     const result = emitPlaywrightScenarioSpec(journey, { limit: optionNumber("limit") });
     const out = optionValue("out");
     if (out) {

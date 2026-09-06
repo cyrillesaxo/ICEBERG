@@ -3,8 +3,12 @@ import assert from "node:assert/strict";
 import {
   admitEvidence,
   analyzeReactivationImpact,
+  buildClaimChallenge,
   inspectDeceptiveWitness,
   issueAssuranceReceipt,
+  listDeceptionMechanisms,
+  listSemanticTypes,
+  reviewClaim,
   selectFirstBite
 } from "../packages/assurance/src/index.js";
 
@@ -80,6 +84,97 @@ test("First Bite prefers deception probe when it contaminates the top scenario c
   assert.equal(result.recommendedNext.probe.id, "PROBE_REAL_AUTHORITY_BOUNDARY");
 });
 
+test("canonical semantic taxonomy has exactly twelve types", () => {
+  const types = listSemanticTypes();
+  assert.equal(types.length, 12);
+  assert.deepEqual(types.map((item) => item.id), [
+    "G1_LABEL",
+    "G2_NODE",
+    "G3_BOUNDARY",
+    "G4_EDGE",
+    "G5_OPERATION",
+    "G6_PERSPECTIVE",
+    "G7_GRANULARITY",
+    "G8_EVIDENCE",
+    "G9_PREREQUISITE",
+    "G10_CONFLICT",
+    "G11_TEMPORAL",
+    "G12_AUTHORITY"
+  ]);
+});
+
+test("claim challenge uses exactly the five canonical deception mechanisms", () => {
+  const mechanisms = listDeceptionMechanisms();
+  assert.deepEqual(mechanisms.map((item) => item.id), [
+    "UNTRACEABLE_DEPTH",
+    "INFLATED_SCOPE",
+    "LOADED_CHANNEL",
+    "LOADED_FRAME",
+    "UNSTATED_IMPLICATION"
+  ]);
+});
+
+test("absence of a deceptive-witness detector leaves mechanism state unknown", () => {
+  const challenge = buildClaimChallenge({
+    claim: { id: "resume-reading", semanticTypes: ["G4"] },
+    audits: []
+  });
+  assert.equal(challenge.deceptionMechanisms.length, 5);
+  assert.ok(challenge.deceptionMechanisms.every((item) => item.status === "unknown"));
+  assert.equal(challenge.selectedProbe, null);
+  assert.ok(challenge.semanticTypes.some((item) => item.id === "G4_EDGE"));
+  assert.ok(challenge.semanticTypes.some((item) => item.id === "G8_EVIDENCE"));
+});
+
+test("explicit mechanism check can clear one coordinate without clearing the others", () => {
+  const challenge = buildClaimChallenge({
+    claim: { id: "choice" },
+    audits: [],
+    mechanismChecks: { LOADED_FRAME: "pass" }
+  });
+  const frame = challenge.deceptionMechanisms.find((item) => item.id === "LOADED_FRAME");
+  assert.equal(frame.status, "checked-clear");
+  assert.ok(challenge.deceptionMechanisms.filter((item) => item.id !== "LOADED_FRAME").every((item) => item.status === "unknown"));
+});
+
+test("claim review mixes evidence risks into a multi-mechanism probe while hiding internal vocabulary", () => {
+  const result = reviewClaim({
+    claim: {
+      id: "otp-return",
+      statement: "Checkout survives OTP interruption and return.",
+      semanticTypes: ["G4", "G11", "G12"]
+    },
+    scope: "technical-ui-runtime",
+    evidence: [{
+      id: "W1",
+      state: "linked-pass",
+      channel: "playwright",
+      scenarioId: "OTP_INTERRUPT_RETURN",
+      evidenceRisks: ["NETWORK_MOCK", "VISUAL_ONLY_ORACLE"]
+    }],
+    includeInternal: true
+  });
+
+  assert.equal(result.userFacing.status, "needs-check");
+  assert.ok(result.userFacing.whyThisMayBeMisleading.length >= 3);
+  assert.equal(result.userFacing.bestNextCheck.title, "Run one check that removes the biggest shortcuts");
+  const triggered = result.internal.challenge.deceptionMechanisms.filter((item) => item.status === "triggered").map((item) => item.id);
+  assert.deepEqual(triggered, ["UNTRACEABLE_DEPTH", "INFLATED_SCOPE", "LOADED_CHANNEL", "UNSTATED_IMPLICATION"]);
+  assert.equal(result.internal.challenge.deceptionMechanisms.find((item) => item.id === "LOADED_FRAME").status, "unknown");
+
+  const visible = JSON.stringify(result.userFacing);
+  assert.doesNotMatch(visible, /G\d+_|deceptive witness|semantic entropy|first bite|admission|antiwitness|TERM/i);
+});
+
+test("claim review hides internals by default", () => {
+  const result = reviewClaim({
+    claim: { id: "simple" },
+    evidence: [{ id: "W1", state: "linked-pass", evidenceRisks: ["FORCED_ACTION"] }]
+  });
+  assert.equal(result.internal, undefined);
+  assert.ok(result.userFacing.bestNextCheck);
+});
+
 test("candidate evidence remains inconclusive", () => {
   const result = admitEvidence({
     claim: { id: "cart-preserved", statement: "Cart state survives OTP return." },
@@ -149,6 +244,7 @@ test("assurance receipt is deterministic for identical semantic input", () => {
     project: "fixture",
     journey: "checkout",
     deceptiveWitnessAudit: { counts: { DECEPTIVE_WITNESS_CANDIDATE: 1 } },
+    claimReview: { userFacing: { status: "needs-check" } },
     allowedConclusion: "The linked technical scenario passed in the supplied run.",
     notEstablished: ["human usability"],
     residualUnknowns: ["production conversion"]
@@ -158,4 +254,5 @@ test("assurance receipt is deterministic for identical semantic input", () => {
   assert.equal(a.receiptId, b.receiptId);
   assert.match(a.receiptId, /^receipt:\/\//);
   assert.deepEqual(a.deceptiveWitnessAudit, input.deceptiveWitnessAudit);
+  assert.deepEqual(a.claimReview, input.claimReview);
 });

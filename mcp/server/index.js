@@ -8,6 +8,7 @@ import {
   analyzeReactivationImpact,
   inspectDeceptiveWitness,
   issueAssuranceReceipt,
+  reviewClaim,
   selectFirstBite
 } from "../../packages/assurance/src/index.js";
 
@@ -16,7 +17,7 @@ export const MCP_PROTOCOLS = Object.freeze({
   legacy: "2025-06-18"
 });
 
-export const MCP_SERVER_INFO = Object.freeze({ name: "ui-iceberg", version: "0.4.0" });
+export const MCP_SERVER_INFO = Object.freeze({ name: "ui-iceberg", version: "0.5.0" });
 
 const SERVER_INFO_META_KEY = "io.modelcontextprotocol/serverInfo";
 const PROTOCOL_VERSION_META_KEY = "io.modelcontextprotocol/protocolVersion";
@@ -65,6 +66,24 @@ const DECEPTIVE_WITNESS_INPUT_SCHEMA = {
   additionalProperties: false
 };
 
+const MECHANISM_CHECK_SCHEMA = {
+  anyOf: [
+    { type: "object", additionalProperties: { type: "string" } },
+    {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          mechanism: { type: "string" },
+          status: { type: "string" }
+        },
+        additionalProperties: false
+      }
+    }
+  ]
+};
+
 export const MCP_TOOLS = Object.freeze([
   {
     name: "scan_repository",
@@ -101,6 +120,28 @@ export const MCP_TOOLS = Object.freeze([
         path: { type: "string" },
         limit: { type: "integer", minimum: 1, maximum: 100 },
         patternLimit: { type: "integer", minimum: 1, maximum: 20 }
+      },
+      additionalProperties: false
+    }
+  },
+  {
+    name: "review_claim",
+    description: "Turn UI test evidence into a plain-language answer: what looks good, why the result may be misleading, the best next check, and what is still unknown. Internal semantic/deception machinery is hidden unless includeInternal=true.",
+    inputSchema: {
+      type: "object",
+      required: ["claim", "evidence"],
+      properties: {
+        claim: { type: "object", additionalProperties: true },
+        scope: { type: "string" },
+        evidence: { type: "array", items: { anyOf: [{ type: "string" }, EVIDENCE_ITEM_SCHEMA] } },
+        antiwitnesses: { type: "array", items: { anyOf: [{ type: "string" }, EVIDENCE_ITEM_SCHEMA] } },
+        gaps: { type: "array", items: { type: "object", additionalProperties: true } },
+        riskSignals: { type: "array", items: { anyOf: [{ type: "string" }, { type: "object", additionalProperties: true }] } },
+        semanticTypes: { type: "array", items: { type: "string" } },
+        gapTypes: { type: "array", items: { type: "string" } },
+        scenario: { type: "object", additionalProperties: true },
+        mechanismChecks: MECHANISM_CHECK_SCHEMA,
+        includeInternal: { type: "boolean", default: false }
       },
       additionalProperties: false
     }
@@ -188,7 +229,7 @@ export const MCP_TOOLS = Object.freeze([
   },
   {
     name: "issue_receipt",
-    description: "Create a compact deterministic ICEBERG assurance receipt linking scan, gap map, deceptive-witness audit, Test Next, admission, reactivation, allowed conclusion, non-established claims, and residual unknowns.",
+    description: "Create a compact deterministic ICEBERG assurance receipt linking scan, gap map, deceptive-witness audit, claim review, Test Next, admission, reactivation, allowed conclusion, non-established claims, and residual unknowns.",
     inputSchema: {
       type: "object",
       properties: {
@@ -197,6 +238,7 @@ export const MCP_TOOLS = Object.freeze([
         scan: { type: "object", additionalProperties: true },
         gapMap: { type: "object", additionalProperties: true },
         deceptiveWitnessAudit: { type: "object", additionalProperties: true },
+        claimReview: { type: "object", additionalProperties: true },
         testNext: { type: "object", additionalProperties: true },
         admission: { type: "object", additionalProperties: true },
         reactivation: { type: "object", additionalProperties: true },
@@ -235,6 +277,7 @@ export async function callTool(name, input = {}) {
     });
     return prioritizeGapReport(report);
   }
+  if (name === "review_claim") return reviewClaim(input);
   if (name === "check_deceptive_witness") return inspectDeceptiveWitness(input);
   if (name === "select_first_bite") return selectFirstBite(input.gaps || [], input.riskSignals || [], { deceptiveWitnesses: input.deceptiveWitnesses || [] });
   if (name === "generate_test_spec") return emitPlaywrightScenarioSpec(input.journey, { limit: input.limit });
@@ -299,7 +342,7 @@ export async function handleRpc(message) {
       result: modernResult({
         supportedVersions: [MCP_PROTOCOLS.modern, MCP_PROTOCOLS.legacy],
         capabilities: { tools: {} },
-        instructions: "Use scan/gap tools to form bounded hypotheses, check_deceptive_witness before trusting apparent support, select_first_bite to choose the next discriminating probe, admit_evidence only after evidence exists, and reactivation_impact after meaningful changes. Unknown is not PASS; flaky is not PASS; nominally green is not automatically admissible.",
+        instructions: "For user-facing answers, prefer review_claim: it explains what looks good, why a green result may mislead, the best next check, and what remains unknown. Use the lower-level assurance tools when an agent needs detailed evidence mechanics. Unknown is not PASS; flaky is not PASS; nominally green is not automatically proven.",
         ttlMs: 300000,
         cacheScope: "public"
       })

@@ -1,136 +1,156 @@
-# Deceptive Witness checking
+# Deceptive evidence and claim challenge
 
-UI Iceberg v0.4 adds a bounded executable deceptive-witness layer between nominally green evidence and scoped admission.
+UI Iceberg v0.5 separates three things that must not be collapsed:
 
-## Core idea
+1. **the five canonical deception mechanisms** — structural ways true-looking evidence can do an illegal job;
+2. **detector-specific evidence risks/distortions** — concrete patterns the repository scanner can currently observe;
+3. **the 12 semantic types** — internal coordinates for where meaning, authority, scope, timing, or relationships can move.
 
-A **witness** supports a claim under stated conditions.
+The default user-facing output does not expose this vocabulary. It translates the result into practical reasons and a best next check.
 
-An **antiwitness** contradicts or narrows that claim.
+## Five canonical mechanisms
 
-A **deceptive witness candidate** is different: the result appears supportive, often green, but the evidence channel can license a weaker claim than the team may infer.
+The Deceptive Witness research line defines five mechanisms:
 
-```text
-green result
-  -> witness candidate
-  -> deceptive-witness check
-  -> clean / weakened / deceptive / non-witness / antiwitness / unknown
-  -> First Bite probe
-  -> scoped admission
-```
-
-This is an evidence-quality classification, not a product-defect verdict.
-
-## Executable v0.4 subset
-
-The PackSpec validation receipt records a larger research taxonomy, but its full normative 72-item deceptive-witness catalog is not yet vendored into this repository. UI Iceberg therefore does **not** fabricate those missing definitions.
-
-v0.4 executes only a bounded public subset derived from the repository's existing test-evidence-risk detectors:
-
-| Evidence risk | Distortion | Example claim weakened |
+| Mechanism | Meaning | Structural check |
 | --- | --- | --- |
-| `FIXED_WAIT` | `TEMPORAL_ASSUMPTION` | deterministic readiness/stability |
-| `FORCED_ACTION` | `ACTIONABILITY_BYPASS` | natural user actionability |
-| `SKIPPED_TEST` | `NON_EXECUTION_PRESENTED_AS_COVERAGE` | suite/runtime completeness |
-| `FOCUSED_TEST` | `SUITE_EXCLUSION` | full-suite evidence |
-| `RETRY_ENABLED` / `linked-flaky` | `RETRY_LAUNDERING` | deterministic stability |
-| `NETWORK_MOCK` | `AUTHORITY_SUBSTITUTION` | real authority/integration path |
-| `VISUAL_ONLY_ORACLE` | `ORACLE_SCOPE_NARROWING` | semantic/task/accessibility correctness |
-| `INDEX_BASED_TARGET` | `SEMANTIC_IDENTITY_DRIFT` | stable semantic target identity |
-| `DISABLED_ASSERTION_FAILURE` | `ASSERTION_FAILURE_MASKING` | assertion/run integrity |
+| `UNTRACEABLE_DEPTH` | shallow evidence posing as deep | Can the conclusion be followed to the source/runtime state it claims to represent? |
+| `INFLATED_SCOPE` | narrow evidence stretched broad | Is the conclusion broader than the conditions actually checked? |
+| `LOADED_CHANNEL` | the medium/presentation doing evidentiary work | Does the meaning survive when presentation/status styling is stripped away? |
+| `LOADED_FRAME` | framing steering the conclusion | Does the result survive neutral wording/defaults/comparison? |
+| `UNSTATED_IMPLICATION` | conclusions entering through what is unsaid | Which important postconditions are being inferred without explicit evidence? |
 
-## Claim-aware behavior
+A mechanism is **not** cleared merely because no detector fired. Its state remains `unknown` until an explicit check provides evidence.
 
-A risk does not automatically invalidate every witness.
+These five mechanisms are distinct from the research program's five evidence-system failures. Do not treat the two lists as aliases.
+
+## Detector-specific public subset
+
+The current scanner detects a bounded public subset of concrete test-evidence risks:
+
+| Evidence risk | Current distortion label | Canonical mechanisms it can trigger |
+| --- | --- | --- |
+| `FIXED_WAIT` | `TEMPORAL_ASSUMPTION` | Untraceable Depth, Inflated Scope |
+| `FORCED_ACTION` | `ACTIONABILITY_BYPASS` | Inflated Scope, Unstated Implication |
+| `SKIPPED_TEST` | `NON_EXECUTION_PRESENTED_AS_COVERAGE` | Inflated Scope |
+| `FOCUSED_TEST` | `SUITE_EXCLUSION` | Inflated Scope |
+| `RETRY_ENABLED` / `linked-flaky` | `RETRY_LAUNDERING` | Inflated Scope |
+| `NETWORK_MOCK` | `AUTHORITY_SUBSTITUTION` | Untraceable Depth, Inflated Scope |
+| `VISUAL_ONLY_ORACLE` | `ORACLE_SCOPE_NARROWING` | Loaded Channel, Unstated Implication |
+| `INDEX_BASED_TARGET` | `SEMANTIC_IDENTITY_DRIFT` | Untraceable Depth, Unstated Implication |
+| `DISABLED_ASSERTION_FAILURE` | `ASSERTION_FAILURE_MASKING` | Loaded Channel, Unstated Implication |
+
+The detector label is a concrete implementation clue. The five mechanisms are the more general structural challenge coordinates.
+
+The repository does not claim to execute missing normative research definitions that are not vendored.
+
+## 12 semantic types
+
+Internally, a claim can be projected onto the canonical G1–G12 taxonomy:
+
+```text
+G1 Label
+G2 Node
+G3 Boundary
+G4 Edge
+G5 Operation
+G6 Perspective
+G7 Granularity
+G8 Evidence
+G9 Prerequisite
+G10 Conflict
+G11 Temporal
+G12 Authority
+```
+
+The taxonomy is selective, not a flat user checklist. The active types depend on the claim, scenario, evidence risks, and explicit semantic metadata.
+
+## Probe mixing
+
+The claim challenge engine builds a matrix conceptually equivalent to:
+
+```text
+probe candidate
+×
+five deception mechanisms
+×
+active semantic types
+```
+
+A single probe can challenge several mechanisms and semantic coordinates. That is preferred when it gives a better information gain/cost tradeoff than running isolated checks.
 
 Example:
 
 ```text
-network mock + linked-pass
+real delayed payment return
++ explicit cart/payment/state assertions
 ```
 
-can support:
+can simultaneously challenge:
+
+- a simulated authority boundary,
+- narrow scope being generalized to the real path,
+- timing assumptions,
+- visual appearance being used as a proxy for preserved state,
+- implied journey continuity that was never asserted.
+
+The probe rank is an ordinal testing heuristic, not a defect probability.
+
+## Why probes are necessary
+
+A detector or conflict set can identify plausible explanations, but it does not prove which one caused the observed problem. A discriminating probe is the operation that rules explanations in or out.
+
+Therefore:
 
 ```text
-frontend handled the supplied mocked response
+evidence risk
+  -> candidate explanation(s)
+  -> probe
+  -> observed result
+  -> bounded conclusion
 ```
 
-but cannot, by itself, establish:
+not:
 
 ```text
-real provider callback semantics
-production authority behavior
-production journey health
+evidence risk -> product defect proven
 ```
 
-Likewise, an index-based selector may weaken semantic-identity claims while still providing useful evidence for a narrower interaction under fixed ordering.
+## User-facing translation
 
-## Admission filtering
-
-`admit_evidence` now audits strong supporting witnesses before they can license a claim.
-
-- A clean witness can license the requested scope.
-- A weakened witness can license the requested scope when its known distortions do not block that scope.
-- A deceptive-witness candidate cannot license the blocked scope by itself.
-- If every nominally strong supporting witness is deceptive for the requested scope, the verdict remains `INCONCLUSIVE`.
-- A strong antiwitness still yields `REJECTED`.
-- A clean independent witness can license the scope even when another nominally green witness is deceptive; the deceptive witness remains visible in the receipt.
-
-## First Bite integration
-
-`select_first_bite` accepts optional deceptive-witness inputs.
-
-When the top scenario gap and a deceptive witness refer to the same scenario, UI Iceberg prefers the distortion probe before admission.
-
-Example:
+For ordinary users, translate the machinery into:
 
 ```text
-OTP_INTERRUPT_RETURN is top gap
-+
-apparent linked-pass uses NETWORK_MOCK
-
-=> recommended next:
-PROBE_REAL_AUTHORITY_BOUNDARY
+What looks good
+Why this may still be misleading
+Best next check
+What the check can tell you
+What is still unknown
 ```
 
-The selection is a deterministic testing heuristic, not a calibrated defect probability.
-
-## MCP
-
-Use:
+Example translations:
 
 ```text
-check_deceptive_witness
+NETWORK_MOCK
+-> "The payment return was simulated."
+
+VISUAL_ONLY_ORACLE
+-> "The screen looked right, but preserved state was never checked."
+
+FORCED_ACTION
+-> "The test bypassed an action a real user must perform naturally."
 ```
 
-with a claim, witness, and evidence-risk signals. The result includes:
+The internal labels remain available through `review_claim(includeInternal=true)` for research, governance, debugging, and receipts.
 
-- classification;
-- distortion(s);
-- requested claim scope;
-- whether the distortion blocks that scope;
-- the narrower licensed claim;
-- a recommended discriminating probe;
-- an explicit evidence boundary.
+## Evidence verdicts
 
-The scan output already reports the current test-evidence-risk signals, so agents can pass those observations into deceptive-witness checking rather than inventing evidence characteristics.
+Lower-level `admit_evidence` behavior remains scoped:
 
-## Signature loop
+- clean support may license only the requested scope;
+- evidence blocked by a known distortion cannot license that scope by itself;
+- a clean independent result may still license the scope while distorted evidence stays visible;
+- strong contradictory runtime evidence rejects the evaluated claim under the tested conditions;
+- flaky, candidate, or unknown evidence remains inconclusive.
 
-The intended UI Iceberg loop is:
-
-```text
-implementation/test signal
-  -> scenario hypothesis
-  -> apparent witness
-  -> deceptive-witness check
-  -> semantic entropy
-  -> First Bite
-  -> discriminating probe
-  -> witness / antiwitness
-  -> admission
-  -> receipt
-  -> TERM reactivation after change
-```
-
-A deceptive witness explains **why evidence looked safer than it was**. The discriminating probe determines whether the product itself actually fails under the targeted condition.
+The default product output translates those states rather than teaching their internal names.

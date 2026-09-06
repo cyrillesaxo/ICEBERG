@@ -1,407 +1,242 @@
 ---
 name: ui-iceberg
-description: Use UI Iceberg to audit, harden, repair, and verify UI user journeys in a code repository. Activate when the user asks to find hidden UI bugs or constraints, explain why green UI tests may still miss failures, detect deceptive witnesses, improve cross-page or mobile consistency, identify missing scenarios, decide what to test next, generate evidence-linked Playwright tests, verify a UI repair, or apply ICEBERG/APX-style journey assurance. Prefer the UI Iceberg MCP or CLI when available; never convert static signals or deceptive-witness classifications into claims of proven product defects.
+description: Use UI Iceberg to audit, harden, repair, and verify UI user journeys in a code repository. Activate when the user asks to find hidden UI bugs or constraints, explain why green UI tests may still miss failures, detect deceptive evidence, improve cross-page or mobile consistency, identify missing scenarios, decide what to test next, generate evidence-linked Playwright tests, verify a UI repair, or apply ICEBERG/APX-style journey assurance. Prefer the UI Iceberg MCP or CLI when available; never convert static signals or evidence-risk classifications into claims of proven product defects.
 license: Apache-2.0
 compatibility: Requires repository access. Running UI Iceberg locally requires Node.js 20+. Playwright runtime verification requires a JSON reporter output. MCP use is optional.
 metadata:
   author: cyrillesaxo
   publisher: Dodo LLC
-  version: "0.2.0"
+  version: "0.3.0"
   source-repository: cyrillesaxo/ICEBERG
   source-branch: main
 ---
 
 # UI Iceberg
 
-Use this skill as an independent UI journey-assurance layer above the application's implementation and test runner.
+Use this skill as an independent journey-assurance layer above the application's implementation and test runner.
 
-UI Iceberg does not replace Playwright, Selenium, Cypress, Katalon, Storybook, accessibility tooling, visual inspection, or the coding agent. It determines which journey conditions deserve evidence, exposes important conditions that appear unverified, checks whether apparent witnesses overstate their evidence channel, selects a bounded next probe, and preserves the difference between hypothesis and proof.
+The product-facing job is simple:
+
+1. identify what looks safe;
+2. explain why that result may still be misleading;
+3. choose the single best next check;
+4. report what the check actually proved;
+5. keep meaningful unknowns visible.
+
+Do not teach the user the internal research vocabulary unless they ask for research, governance, receipts, or implementation details.
 
 ## Non-negotiable evidence law
 
-Always preserve this chain:
+Internally preserve this chain:
 
 ```text
-implementation/test signal
-  -> relevant failure pattern or evidence risk
+implementation signal
   -> scenario hypothesis
-  -> apparent witness
-  -> deceptive-witness check when applicable
-  -> discriminating probe / executable test
+  -> probe
   -> evidence
-  -> witness / antiwitness
-  -> scoped admission
   -> bounded conclusion
 ```
 
-Never collapse it into:
+Do not collapse it into:
 
 ```text
 implementation signal -> defect proven
 ```
 
-Likewise:
+Likewise, a green test means its executed assertions passed. It does not automatically prove the whole journey or every conclusion inferred from it.
 
-```text
-green test -> assertions in that execution passed
-```
+**Unknown is not PASS. Flaky is not PASS. Candidate evidence is not verified evidence. Green is not automatically proven.**
 
-is not equivalent to:
-
-```text
-green test -> requested claim licensed
-```
-
-or:
-
-```text
-green test -> whole user journey is correct
-```
-
-**Unknown is not PASS. Flaky is not PASS. Candidate evidence is not verified evidence. Nominally green is not automatically admissible.**
-
-Read `references/EVIDENCE_MODEL.md` when interpreting scan results, runtime states, deceptive witnesses, hidden constraints, or confidence.
+Read `references/EVIDENCE_MODEL.md` when interpreting confidence, runtime states, deceptive evidence, or claim boundaries.
 
 ## Activate this skill when
 
 Use it for requests such as:
 
-- find hidden UI bugs, hidden primitives, latent constraints, or deceptive-green test coverage;
-- identify whether a green test is a clean, weakened, or deceptive witness for a specific claim;
-- review or improve a UI repository before or after implementation;
-- make navigation, interaction, state, or responsive behavior consistent across pages;
-- analyze why an app passes tests but still fails in realistic use;
-- identify important scenarios that have no test or weak evidence;
-- generate or improve Playwright tests around user journeys rather than isolated components;
-- determine the highest-value next UI test or repair;
+- find hidden UI bugs, hidden primitives, or latent constraints;
+- explain why a green suite can still miss realistic journey failures;
+- identify when a passing test supports a narrower conclusion than the team assumes;
+- improve navigation, interaction, state, or responsive consistency across pages;
+- identify important scenarios with missing or weak evidence;
+- generate or improve Playwright tests around user journeys;
+- choose the highest-value next check or repair;
 - verify that a UI fix actually closes the targeted journey gap;
-- evaluate interruption/resumption, async races, persistence, permissions, accessibility channels, mobile geometry, external redirects, retries, duplicate actions, localization, or multi-context behavior;
-- apply the ICEBERG PackSpec concepts without forcing advanced vocabulary on the end user.
+- evaluate interruption/resumption, async races, persistence, permissions, mobile geometry, accessibility channels, redirects, retries, duplicate actions, localization, or multi-context behavior.
 
 Do not activate merely to restyle a static visual when no journey, interaction, state, or evidence question is involved.
 
-## Required inputs
-
-Use what is available; do not ask the user to repeat context that can be derived from the repository or task.
-
-Minimum useful input:
-
-- a repository path/source, running application, or sufficiently detailed UI artifact; and
-- a user goal or journey, either explicit or inferable.
-
-Helpful optional inputs:
-
-- screenshots or design references;
-- bug reports or acceptance criteria;
-- existing UI tests;
-- Playwright JSON report;
-- target viewports, locales, roles, permissions, or assistive channels;
-- a specific page, flow, regression, or suspected hidden constraint.
-
-If the journey is not named, infer candidate journeys from routes, forms, actions, test names, product language, and repository signals. State the inferred journey only when ambiguity materially affects the result.
-
 ## Tool selection
 
-Prefer the strongest available path in this order:
+Prefer, in order:
 
-1. **UI Iceberg MCP** if the agent exposes the ICEBERG tools.
-2. **UI Iceberg CLI** if the repository can execute Node.js commands.
-3. **Evidence-disciplined manual analysis** only when neither MCP nor CLI can run.
+1. **UI Iceberg MCP** when available.
+2. **UI Iceberg CLI** when repository commands can run.
+3. **Evidence-disciplined manual analysis** only when neither can run.
 
-Never claim that UI Iceberg executed if you only emulated its reasoning model.
+Never claim UI Iceberg executed when only its reasoning pattern was emulated.
 
-Read `references/OPERATIONS.md` for exact MCP tool names, CLI commands, deceptive-witness inputs, and runtime evidence states.
+For normal user-facing conclusions, prefer MCP `review_claim`. Use lower-level tools only when detailed orchestration is required.
+
+Read `references/OPERATIONS.md` for exact tool names and runtime states.
 
 ## Workflow
 
-### 1. Establish the journey and evidence target
+### 1. Anchor on the user journey
 
-Define the user goal, start state, important transitions, completion condition, and any explicit context such as mobile, role, locale, interruption, or accessibility channel.
+Identify the user goal, start state, important transitions, completion condition, and relevant context such as viewport, role, locale, interruption, or accessibility channel.
 
-Prefer user-facing language:
-
-```text
-Journey -> Steps -> Scenarios -> Coverage gaps -> Test next -> Verify
-```
-
-Use advanced/internal terms only when they improve precision:
+Default user vocabulary:
 
 ```text
-ContextOfUse + TaskGraph -> pressure/state/invariant probe -> MissSet -> First Bite -> Witness/DeceptiveWitness/Antiwitness -> replay/admission
+Journey -> Important conditions -> What is missing -> Best next check -> Result
 ```
 
-### 2. Scan the repository before prescribing fixes
+Internal structures may be richer, but do not surface them unless useful.
 
-If MCP is available, call `scan_repository`.
+### 2. Scan before prescribing fixes
 
-If CLI is available, run:
+Use `scan_repository` or:
 
 ```bash
 ui-iceberg scan <repo-path> --json
 ```
 
-or, from this repository checkout:
-
-```bash
-node packages/cli/bin/ui-iceberg.js scan <repo-path> --json
-```
-
-Capture at least:
-
-- detected UI framework and test tools;
-- candidate journeys;
-- implementation risk fingerprint;
-- test-evidence risks;
-- repository caveats.
-
-Treat every implementation risk as a selector for scenarios, not as a defect finding.
+Capture the UI/test stack, candidate journeys, implementation pressures, test-evidence risks, and caveats. Repository signals select hypotheses; they are not defect findings.
 
 ### 3. Build a bounded scenario plan
 
-Generate scenarios for the target journey, hardened by repository signals.
+Use `generate_scenarios` and `find_gaps` or the equivalent CLI commands. Prefer a small prioritized set over an indiscriminate edge-case dump.
 
-Prefer a bounded set. Do not produce an indiscriminate 100-item edge-case dump. The current hardening layer defaults to a small repository-specific scenario budget.
+Prioritize conditions that can invalidate the actual user goal: failure/retry, slow response, duplicate action, refresh/back continuity, interruption/return, session expiry, mobile reachability, zoom, keyboard operation, state restoration, empty states, and repository-specific pressures.
 
-Prioritize conditions that can invalidate the user's actual goal, including where applicable:
+### 4. Review apparent green evidence
 
-- success-path completion;
-- validation recovery;
-- request failure and retry;
-- slow/pending feedback;
-- duplicate action prevention;
-- refresh/back/forward continuity;
-- leave-and-return interruption;
-- session expiry and reauthentication;
-- mobile primary-action reachability;
-- zoom/text scaling;
-- keyboard-only operation;
-- state restoration after errors;
-- empty/zero-data states;
-- domain-specific and repository-risk scenarios.
+For ordinary output, pass the claim and relevant evidence to `review_claim`.
 
-For deeper hidden-pressure mapping, read `references/CONSTRAINT_SURFACES.md`.
+Under the hood, v0.5 can evaluate the claim using the canonical 12 semantic types, five deception mechanisms, evidence-risk mappings, and a probe matrix. This machinery is internal by default.
 
-### 4. Map scenarios to existing evidence
+The five canonical deception mechanisms are:
 
-Use `find_gaps` or `ui-iceberg gaps`.
+- Untraceable Depth
+- Inflated Scope
+- Loaded Channel
+- Loaded Frame
+- Unstated Implication
 
-Keep the evidence state exactly as returned. Static source matching can establish candidate or partial evidence; it does not establish runtime coverage.
+Absence of a detected problem does not clear a mechanism. It remains unknown until actually checked or explicitly cleared by evidence.
 
-Review evidence-risk signals such as fixed waits, forced actions, retries, skipped/focused tests, network mocks, visual-only oracles, index-based targets, and soft assertions. These narrow what a green result is licensed to establish; they are not automatically product defects.
+The current code also has lower-level evidence-risk classifiers for patterns such as forced actions, fixed waits, retries, network mocks, visual-only oracles, index-based targets, focused/skipped tests, and soft-assertion configurations. These are evidence-quality signals, not product-defect verdicts.
 
-### 5. Inspect apparent green witnesses before trusting them
+### 5. Choose the best next check
 
-When a relevant test or runtime artifact appears to support a material claim and evidence-risk signals are known, use `check_deceptive_witness`.
+Prefer one check that resolves several important uncertainties at once when possible.
 
-The question is not “is this test bad?” It is:
+The internal probe planner may combine multiple live mechanisms and semantic coordinates into one experiment. For example, a real delayed return plus explicit state assertions can simultaneously test a simulated authority boundary, timing assumptions, and visual-only evidence.
 
-> Does this witness's evidence channel license the exact claim/scope we are about to infer?
+The selection is a testing heuristic, not a defect probability.
 
-Preserve the returned classification:
+### 6. Probe before broad repair
 
-- `CLEAN_WITNESS`
-- `WEAKENED_WITNESS`
-- `DECEPTIVE_WITNESS_CANDIDATE`
-- `NON_WITNESS_OBLIGATION`
-- `ANTIWITNESS`
-- `UNKNOWN_WITNESS`
+When the user asks to fix the UI:
 
-Important examples:
+1. state the practical condition at risk;
+2. create or select the smallest discriminating check;
+3. observe the actual result;
+4. patch the smallest shared implementation surface that restores the invariant;
+5. preserve unrelated behavior;
+6. add regression evidence that would fail if the issue returns.
 
-```text
-FORCED_ACTION -> ACTIONABILITY_BYPASS
-NETWORK_MOCK -> AUTHORITY_SUBSTITUTION
-VISUAL_ONLY_ORACLE -> ORACLE_SCOPE_NARROWING
-INDEX_BASED_TARGET -> SEMANTIC_IDENTITY_DRIFT
-RETRY_ENABLED / linked-flaky -> RETRY_LAUNDERING
-```
+For cross-page/mobile consistency, repair the shared primitive rather than patching screenshots independently.
 
-A deceptive-witness classification is about evidence distortion. It does **not** prove the product defect exists.
+### 7. Generate and run executable evidence
 
-The current executable classifier is a bounded public subset. Do not claim execution of the full PackSpec 72-item deceptive-witness taxonomy until its normative definitions are actually vendored.
+Use `generate_test_spec` when useful. Generated Playwright scaffolds remain `test.skip` until real product actions and assertions are implemented.
 
-### 6. Select one First Bite / TEST NEXT
-
-Use `select_first_bite` when MCP is available and provide deceptive-witness inputs when they concern a candidate scenario.
-
-Rank the next probe by:
-
-- journey impact/severity;
-- missing or partial evidence;
-- journey specificity;
-- repository relevance;
-- evidence uncertainty;
-- deceptive-witness distortion when it blocks the top scenario claim;
-- cost/reversibility when choosing among similarly valuable probes.
-
-When a deceptive witness directly contaminates the top scenario, prefer the distortion-specific probe before admitting the apparent support.
-
-The ranking is a **test-priority heuristic**, never a defect probability.
-
-Default to one primary `TEST NEXT` and at most a small fallback set. Avoid broad remediation programs before the highest-value uncertainty is tested.
-
-### 7. If the user asked to fix or improve the UI, probe before broad repair
-
-For each high-value suspected issue:
-
-1. State the scenario and violated/at-risk constraint.
-2. State whether the current support is clean, weakened, deceptive, unknown, or contradictory.
-3. Reproduce or create the smallest discriminating probe.
-4. Observe the actual failure or missing evidence.
-5. Patch the smallest implementation surface that restores the invariant.
-6. Preserve unrelated behavior and visual semantics.
-7. Add evidence that would fail if the defect returns.
-
-Do not redesign unrelated screens merely because the repository contains inconsistent code.
-
-When the request is about cross-page or mobile consistency, compare the shared primitive across pages/viewports rather than fixing screenshots independently. Examples: navigation ownership, active-state identity, semantic target identity, action placement, responsive geometry, focus order, persistence, and route continuity.
-
-### 8. Generate evidence-linked Playwright scaffolds when useful
-
-Use `generate_test_spec` or:
-
-```bash
-ui-iceberg emit <journey> --adapter=playwright --out=<path>
-```
-
-Generated scaffolds are intentionally skipped. Implement product-specific actions and assertions before enabling them.
-
-Keep the stable ICEBERG marker, for example:
+Preserve stable markers such as:
 
 ```text
 [ICEBERG:OTP_INTERRUPT_RETURN]
 ```
 
-Supported linkage also includes forms such as:
+Reconcile runtime results with `verify_journey`.
 
-```text
-@iceberg:OTP_INTERRUPT_RETURN
-ICEBERG_SCENARIO=OTP_INTERRUPT_RETURN
-```
+Preserve runtime distinctions:
 
-Do not remove `test.skip` until the scaffold contains real product actions and assertions.
+- `linked-pass`
+- `linked-flaky`
+- `linked-fail`
+- `runtime-candidate`
+- `unverified`
 
-### 9. Run and reconcile runtime evidence
+Never normalize retry-dependent success into a clean pass.
 
-For Playwright, produce JSON reporter output, then use `verify_journey` or:
+### 8. Recheck after meaningful change
 
-```bash
-ui-iceberg verify <journey> <repo-path> --report=<playwright-json>
-```
-
-Preserve these states:
-
-- `linked-pass` — explicit scenario link and clean runtime pass;
-- `linked-flaky` — explicit link but retry-dependent pass;
-- `linked-fail` — explicit link and runtime failure;
-- `runtime-candidate` — relevant execution without explicit scenario linkage;
-- `unverified` — no runtime evidence.
-
-A retry-dependent pass must remain `linked-flaky`.
-
-After runtime reconciliation, re-run deceptive-witness checking when the actual runtime witness still contains evidence-channel risks relevant to the requested claim.
-
-### 10. Admit only after evidence-channel filtering
-
-Use `admit_evidence` for a material claim.
-
-Rules:
-
-- clean supporting runtime evidence may admit the requested scope;
-- weakened evidence may admit only when its distortion does not block that scope;
-- a claim-blocking deceptive witness cannot admit that scope by itself;
-- a clean independent witness can still license the scope while the deceptive witness remains visible;
-- a strong antiwitness rejects the evaluated claim/scope;
-- flaky/candidate/unknown evidence remains inconclusive.
-
-Do not promote admission in `technical-ui-runtime` to cognitive usability, accessibility completeness, production journey health, causal root cause, or business outcome.
-
-### 11. Re-scan after meaningful change
-
-After a repair or substantial UI change:
-
-- replay the targeted scenario;
-- re-run gap analysis for the journey;
-- inspect whether the change introduces new pressure or evidence-risk signals;
-- use `reactivation_impact` when prior assurance depends on changed files/signals;
-- explicitly report residual unknowns.
-
-Do not declare the whole UI certified because the targeted scenario passes.
+After a repair or substantial UI change, replay the targeted condition, inspect new pressures, and use `reactivation_impact` when prior evidence depends on changed files/signals. Unknown change impact remains unknown.
 
 ## Repair rules
 
-When modifying code under this skill:
+When modifying code:
 
-- prefer shared primitives over page-specific patches when the same invariant spans multiple pages;
-- fix semantic identity before compensating with coordinates or brittle selectors;
-- preserve valid state across interruption, refresh, navigation, and authority boundaries where the journey requires it;
-- ensure a visible control is actually actionable, not merely rendered;
-- test mobile/zoom/keyboard behavior as distinct projections, not as assumptions inferred from desktop;
-- use stable semantic selectors/markers where possible;
+- prefer shared primitives over page-specific patches;
+- fix semantic identity before compensating with brittle coordinates/selectors;
+- preserve valid state across interruption, refresh, navigation, and authority boundaries when the journey requires it;
+- ensure visible controls are actually actionable;
+- test mobile/zoom/keyboard as distinct projections;
+- use stable semantic selectors where possible;
 - distinguish UI projection state from authoritative backend state;
-- avoid forced clicks or fixed sleeps as evidence of correctness;
+- avoid forced clicks and fixed sleeps as proof of correctness;
 - do not hide flakiness with retries;
-- do not treat network mocks or visual oracles as stronger channels than they are.
+- do not treat mocks or screenshots as stronger evidence than they are.
 
-## Output contract
+## Default output contract
 
-For an audit, improvement, or repair task, return a compact evidence-led result with these sections when applicable:
+Do not expose G-codes, deceptive-witness class names, semantic entropy, First Bite, admission, antiwitness, TERM, or similar research vocabulary in the ordinary user result.
 
-### Journey
+Prefer this shape:
 
-State the user goal and relevant context.
+### What looks good
 
-### Iceberg findings
+State the strongest relevant positive evidence in plain language.
 
-Use a table or concise structured list containing:
+### Why this may still be misleading
 
-- scenario / hidden condition;
-- pressure or constraint surface;
-- evidence state;
-- deceptive-witness classification when relevant;
-- observed or potential user impact;
-- evidence needed or result of the probe.
+Give only the practical reasons supported by current evidence, for example:
 
-Clearly label hypotheses versus reproduced defects.
+- “The payment return was simulated.”
+- “The test forced an action a real user must perform naturally.”
+- “The screenshot passed, but preserved state was never asserted.”
 
-### TEST NEXT
+### Best next check
 
-Give one highest-value next scenario/probe and explain whether it closes a missing scenario or discriminates a deceptive witness.
+Give one concrete check, ideally one that resolves multiple important uncertainties at once.
 
-### Change
+### Result
 
-If code was changed, summarize the repaired invariant and affected files/components. Do not claim unrelated improvements.
+If executed, report exactly what happened: passed under tested conditions, failure reproduced, flaky, or still unverified.
 
-### Verification
+### Still unknown
 
-Report exact evidence states and what was actually executed.
+List only meaningful remaining unknowns.
 
-### Admission
+For advanced research/governance requests, `includeInternal=true` may expose the semantic types, five mechanism states, probe matrix, scoped evidence verdicts, receipts, and reactivation details.
 
-For material claims, report the scoped verdict and the evidence that actually licensed it after deceptive-witness filtering.
-
-### Residual unknowns
-
-List only meaningful unresolved coverage, evidence distortions, or unknown dependencies, not boilerplate caveats.
-
-Use `assets/ICEBERG_RECEIPT_TEMPLATE.md` when the user asks for an auditable receipt, governance artifact, PackSpec-style result, or machine-readable review summary.
+Use `assets/ICEBERG_RECEIPT_TEMPLATE.md` when the user asks for an auditable artifact.
 
 ## Completion checklist
 
-Before finishing, verify all of the following:
+Before finishing:
 
-- [ ] A user journey, not just a page, anchors the analysis.
-- [ ] Static repository signals are labeled as hypotheses/selectors, not proven defects.
-- [ ] Evidence-risk findings narrow claims instead of manufacturing failures.
-- [ ] Apparent green witnesses with relevant evidence risks were checked before material admission.
-- [ ] Deceptive-witness classification was not promoted into a product-defect verdict.
-- [ ] The scenario set is bounded and prioritized.
-- [ ] `TEST NEXT` is explicit and discriminating.
-- [ ] If a fix was requested, the relevant scenario was probed or the missing evidence is explicitly stated.
-- [ ] Generated Playwright scaffolds remain skipped until implemented.
+- [ ] The analysis is anchored on a user journey, not just a page.
+- [ ] Repository signals remain hypotheses, not proven defects.
+- [ ] Green evidence is not allowed to support a broader conclusion than it actually checks.
+- [ ] Unchecked deception mechanisms remain unknown rather than silently clear.
+- [ ] The next check is bounded and discriminating.
+- [ ] If a fix was requested, the relevant condition was probed or missing evidence is explicit.
+- [ ] Generated test scaffolds stay skipped until implemented.
 - [ ] Runtime states preserve flaky/candidate/unverified distinctions.
-- [ ] Admission is scoped and follows deceptive-witness filtering.
-- [ ] A targeted pass is not promoted to full journey/product certification.
+- [ ] A targeted pass is not promoted to full product certification.
+- [ ] Default user output avoids internal research vocabulary.
 - [ ] Residual unknowns remain visible.
 
 ## Canonical project identity

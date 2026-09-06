@@ -1,181 +1,202 @@
 # UI Iceberg MCP
 
-UI Iceberg's MCP server is the executable public interface of the assurance compiler. It exposes bounded planning, deceptive-witness inspection, evidence reconciliation, admission, and change-reactivation operations to coding agents without promoting implementation signals or candidate evidence into proof.
+UI Iceberg's MCP server is the executable interface for journey planning, evidence review, probe selection, runtime reconciliation, and change-triggered rechecks.
+
+The default user-facing operation is intentionally simple:
+
+```text
+review_claim
+  -> what looks good
+  -> why the result may be misleading
+  -> best next check
+  -> what the check can tell you
+  -> what is still unknown
+```
+
+The deeper research machinery remains available to agents, but it is not required user vocabulary.
 
 ## Architectural role
 
 ```text
-PackSpec       defines the semantic regime
-    ↓
-Agent Skill    defines reasoning/orchestration policy
-    ↓
-MCP            exposes deterministic executable operations
-    ↓
-ICEBERG        compiles scenarios, gaps, evidence state, and change impact
-    ↓
-Playwright / other executors / human probes
-               produce evidence
-    ↓
-Witness candidate
-    ↓
-Deceptive-witness check
-    ↓
-Witness / Antiwitness / Unknown
-    ↓
-Admission + Receipt
-    ↓
-TERM-style reactivation after change
+PackSpec / research model
+        ↓
+Agent Skill
+        ↓
+MCP executable operations
+        ↓
+ICEBERG assurance compiler
+        ↓
+plain-language translation layer
+        ↓
+user-facing claim review
 ```
 
-The MCP server does not certify UI correctness by itself.
+Executors such as Playwright produce runtime evidence. ICEBERG does not certify UI correctness by itself.
 
 ## Protocol support
 
-v0.4 supports two protocol eras over stdio:
+v0.5 supports:
 
 - modern MCP `2026-07-28` through `server/discover` and per-request `_meta`,
-- the legacy `2025-06-18` `initialize` handshake for compatibility.
+- legacy `2025-06-18` `initialize` for compatibility.
 
-Modern `tools/list` responses include cache hints. Modern responses carry server identity in `_meta`.
+Modern `tools/list` responses include cache hints and server identity metadata.
 
-The Tasks extension is intentionally not advertised yet. Current ICEBERG operations are synchronous, and capability declarations must follow implementation evidence rather than roadmap intent.
+The Tasks extension is not advertised because current ICEBERG operations are synchronous.
 
 ## Tools
 
-| Tool | Role | Does not establish |
-| --- | --- | --- |
-| `scan_repository` | Detect candidate journeys, implementation pressures, test stack, evidence risks | A defect exists |
-| `generate_scenarios` | Produce a bounded scenario hypothesis set | The scenarios occur in production |
-| `find_gaps` | Map candidate test evidence and rank missing/partial scenarios | Runtime coverage |
-| `check_deceptive_witness` | Determine whether an apparent witness has a claim-blocking evidence-channel distortion | A product defect exists |
-| `select_first_bite` | Select the next high-value discriminating probe, including a distortion probe when it contaminates the top scenario | Defect probability |
-| `generate_test_spec` | Emit a skipped Playwright scaffold | An implemented or passing test |
-| `verify_journey` | Reconcile explicit/runtime Playwright evidence | Human usability or production health |
-| `admit_evidence` | Filter strong witnesses for deceptive evidence before issuing a scoped claim verdict | Stronger claim scopes not separately licensed |
-| `reactivation_impact` | Invalidate prior assurance when dependencies/signals change | A regression exists |
-| `issue_receipt` | Create a stable assurance handle and preserve boundaries | New evidence beyond its inputs |
+| Tool | Primary role |
+| --- | --- |
+| `scan_repository` | Inspect UI/test stack, implementation pressures, and test-evidence risks |
+| `generate_scenarios` | Produce a bounded journey scenario set |
+| `find_gaps` | Identify important missing/partial scenario evidence |
+| `review_claim` | Produce the default plain-language user result |
+| `check_deceptive_witness` | Advanced: inspect one apparent witness for evidence distortion |
+| `select_first_bite` | Advanced: rank the next discriminating scenario/probe |
+| `generate_test_spec` | Emit a skipped Playwright scaffold |
+| `verify_journey` | Reconcile Playwright runtime evidence |
+| `admit_evidence` | Advanced: issue a scoped evidence verdict |
+| `reactivation_impact` | Determine which prior checks must be reopened after change |
+| `issue_receipt` | Create a deterministic assurance receipt |
 
-## Evidence law
+No tool turns a static repository signal into proof of a product defect.
 
-```text
-signal
-  → failure-pattern hypothesis
-  → scenario
-  → apparent witness
-  → deceptive-witness check
-  → First Bite / discriminating probe
-  → evidence
-  → witness / antiwitness
-  → scoped admission
+## `review_claim`
+
+`review_claim` is the preferred operation when the agent needs to explain a result to a developer, QA lead, product owner, or other ordinary user.
+
+Example input:
+
+```json
+{
+  "claim": {
+    "id": "checkout-otp",
+    "statement": "Checkout survives OTP interruption and return."
+  },
+  "evidence": [
+    {
+      "id": "W1",
+      "state": "linked-pass",
+      "channel": "playwright",
+      "evidenceRisks": ["NETWORK_MOCK", "VISUAL_ONLY_ORACLE"]
+    }
+  ]
+}
 ```
 
-Never collapse it into:
+Default output shape:
 
-```text
-signal → defect
+```json
+{
+  "userFacing": {
+    "status": "needs-check",
+    "headline": "The tests may be green, but the current evidence does not yet support this claim.",
+    "whatLooksGood": [],
+    "whyThisMayBeMisleading": [],
+    "bestNextCheck": {},
+    "whatThisCheckCanTellYou": "...",
+    "stillUnknown": []
+  }
+}
 ```
 
-or:
+The default result does **not** expose G-codes, deceptive-witness class names, semantic entropy, First Bite, admission, antiwitness, TERM, or similar internal vocabulary.
+
+Set `includeInternal=true` only when an agent, researcher, receipt, or governance workflow genuinely needs the underlying structures.
+
+## Internal semantic model
+
+v0.5 embeds the canonical 12 semantic types used elsewhere in the research program:
+
+- G1 Label
+- G2 Node
+- G3 Boundary
+- G4 Edge
+- G5 Operation
+- G6 Perspective
+- G7 Granularity
+- G8 Evidence
+- G9 Prerequisite
+- G10 Conflict
+- G11 Temporal
+- G12 Authority
+
+The 12 types are not a flat checklist shown to the user. They are internal coordinates for locating where a claim or transition can lose meaning.
+
+## Five canonical deception mechanisms
+
+The claim challenge layer uses the five canonical mechanisms from the Deceptive Witness research line:
+
+1. `UNTRACEABLE_DEPTH` — shallow evidence posing as deep evidence
+2. `INFLATED_SCOPE` — narrow evidence stretched broad
+3. `LOADED_CHANNEL` — the medium/presentation doing evidentiary work
+4. `LOADED_FRAME` — framing steering the target conclusion
+5. `UNSTATED_IMPLICATION` — conclusions smuggled in through what is unsaid
+
+These are distinct from the five evidence-system failures in the research program. Do not collapse the two lists.
+
+A mechanism remains `unknown` when no detector fires. Absence of a detected trigger is not a clean bill of health. A mechanism becomes `checked-clear` only through an explicit check.
+
+## Probe matrix
+
+The claim challenge engine combines:
 
 ```text
-passing test → journey verified → human outcome verified
+active semantic types
+×
+five deception mechanisms
+×
+probe candidates
 ```
 
-## Deceptive witnesses
+A probe can cover more than one mechanism and more than one semantic coordinate. The planner therefore prefers a bounded check that resolves several important uncertainties at once when possible.
 
-`check_deceptive_witness` is claim-aware. A green result can remain useful while licensing a narrower claim than the one a team may infer.
-
-Example:
+Example conceptually:
 
 ```text
-linked-pass + NETWORK_MOCK
+real delayed OTP return + explicit state assertions
+    ↓
+can challenge simulated authority
++ timing assumptions
++ visual-only evidence
++ implied state continuity
 ```
 
-can support:
+Probe scores are ordinal prioritization heuristics. They are not defect probabilities.
 
-```text
-frontend handled the supplied mocked response
-```
+## Lower-level deceptive-evidence classifier
 
-without establishing:
+`check_deceptive_witness` remains available for detailed agent work. It detects a bounded public subset derived from repository test-evidence-risk patterns, including:
 
-```text
-real authority callback semantics
-production authority behavior
-production journey health
-```
+- fixed waits,
+- forced actions,
+- skipped/focused tests,
+- retries,
+- network mocks,
+- visual-only oracles,
+- index-based targets,
+- soft/failure-tolerant assertion configurations.
 
-The executable v0.4 rule set is intentionally bounded to the repository's current public test-evidence-risk detectors. It does not claim to implement the full 72-item research taxonomy referenced by the PackSpec validation receipt.
+Those detector-specific distortions feed the five canonical mechanism coordinates used by `review_claim`.
 
-Current distortion families include:
+The PackSpec validation receipt references a larger research taxonomy. The repository does not claim to execute normative definitions that are not vendored.
 
-- `TEMPORAL_ASSUMPTION`
-- `ACTIONABILITY_BYPASS`
-- `NON_EXECUTION_PRESENTED_AS_COVERAGE`
-- `SUITE_EXCLUSION`
-- `RETRY_LAUNDERING`
-- `AUTHORITY_SUBSTITUTION`
-- `ORACLE_SCOPE_NARROWING`
-- `SEMANTIC_IDENTITY_DRIFT`
-- `ASSERTION_FAILURE_MASKING`
+## Evidence verdicts
 
-See [DECEPTIVE_WITNESS.md](DECEPTIVE_WITNESS.md).
-
-## Admission
-
-`admit_evidence` currently recognizes three verdicts:
+The lower-level `admit_evidence` operation keeps three verdicts:
 
 - `ADMITTED_WITH_SCOPE`
 - `REJECTED`
 - `INCONCLUSIVE`
 
-Strong runtime witness states include `linked-pass`, `runtime-pass`, `reproduced-witness`, and `verified`.
+A clean runtime result can license only the requested scope. Retry-dependent, candidate, unknown, or claim-blocked evidence remains inconclusive. Strong contradictory runtime evidence rejects the evaluated claim under the tested conditions.
 
-Strong contradiction states include `linked-fail`, `runtime-fail`, and `reproduced-antiwitness`.
+A technical runtime result does not automatically establish cognitive usability, accessibility completeness, production journey health, root cause, or business outcome.
 
-`linked-flaky`, `runtime-candidate`, `candidate-covered`, `partial`, `unknown`, and `unverified` preserve uncertainty and do not become PASS.
+## Change rechecks
 
-Before strong support can license the requested scope, v0.4 runs the bounded deceptive-witness check:
-
-- `CLEAN_WITNESS` can license the scope;
-- `WEAKENED_WITNESS` can license the scope when its known distortion does not block that scope;
-- `DECEPTIVE_WITNESS_CANDIDATE` cannot license the blocked scope by itself;
-- a clean independent witness can still license the scope while deceptive witnesses remain explicit;
-- an antiwitness still rejects the scoped claim.
-
-The default claim-license planes are:
-
-- `technical-ui-runtime`
-- `accessibility-complete`
-- `cognitive-usability`
-- `production-journey-health`
-- `business-outcome`
-
-Admission in one plane does not automatically propagate to another.
-
-## First Bite
-
-`select_first_bite` ranks supplied scenario gaps using existing ICEBERG priority and repository-pressure logic. It also accepts optional deceptive-witness inputs.
-
-If a claim-blocking deceptive witness refers to the same scenario as the top gap, the recommendation changes from a generic scenario probe to the distortion-specific probe. Example:
-
-```text
-OTP_INTERRUPT_RETURN is the top gap
-+
-linked-pass relies on NETWORK_MOCK
-
-=> PROBE_REAL_AUTHORITY_BOUNDARY
-```
-
-This is a deterministic recommendation heuristic, not a posterior defect probability.
-
-## Reactivation / TERM
-
-`reactivation_impact` accepts changed files, changed implementation-pressure signals, and a prior scenario set.
-
-A scenario is reactivated when an explicit dependency or known scenario pressure intersects the change. Changed files that cannot be mapped to explicit scenario dependencies remain in `unknown.files`.
-
-This makes the safe default:
+`reactivation_impact` maps changed files/signals to previously evaluated scenarios. Unmapped changed files remain unknown rather than being treated as safe.
 
 ```text
 unmapped change = unknown impact
@@ -189,35 +210,51 @@ unmapped change = unaffected
 
 ## Receipts
 
-`issue_receipt` creates a deterministic `receipt://...` identifier from semantic input. A receipt can link:
+`issue_receipt` can preserve:
 
-- project and journey,
-- scan,
-- gap map,
-- deceptive-witness audit,
-- Test Next,
-- admission,
-- reactivation state,
+- project/journey,
+- scan and gap map,
+- detailed evidence audit,
+- plain-language claim review,
+- next check,
+- lower-level verdict,
+- change-reactivation state,
 - allowed conclusion,
-- explicitly non-established claims,
+- non-established claims,
 - residual unknowns.
 
-The receipt is a compact evidence-state handle, not a certificate of universal correctness.
+A receipt preserves evidence state; it does not create new evidence.
 
 ## Recommended agent flow
+
+For a normal product answer:
 
 ```text
 scan_repository
       ↓
 find_gaps
       ↓
-check_deceptive_witness on apparent green support
+review_claim
+      ↓
+run best next check when implementation access exists
+      ↓
+verify_journey
+      ↓
+review_claim again
+```
+
+For advanced assurance/governance:
+
+```text
+scan_repository
+      ↓
+find_gaps
+      ↓
+check_deceptive_witness
       ↓
 select_first_bite
       ↓
-generate_test_spec / implement targeted probe
-      ↓
-execute the real probe
+execute probe
       ↓
 verify_journey
       ↓
@@ -225,20 +262,17 @@ admit_evidence
       ↓
 issue_receipt
       ↓
-meaningful code change
-      ↓
-reactivation_impact
+reactivation_impact after change
 ```
 
 ## Future work
 
-Potential future additions should remain evidence-gated:
+Potential additions remain evidence-gated:
 
-- vendor the normative full deceptive-witness taxonomy before claiming coverage beyond the bounded public subset,
 - official TypeScript MCP SDK v2 transport migration,
-- Streamable HTTP with 2026-07-28 routing/header validation,
-- durable Tasks extension for genuinely long-running scans/replays,
+- Streamable HTTP routing/header validation,
+- durable Tasks only for genuinely long-running work,
 - explicit WitnessGraph resource handles,
-- richer dependency extraction for reactivation,
-- other executor adapters beyond Playwright,
-- MCP App visualization only when the underlying evidence model is stable.
+- richer dependency extraction for rechecks,
+- executor adapters beyond Playwright,
+- visual MCP surfaces only after the underlying evidence model is stable.

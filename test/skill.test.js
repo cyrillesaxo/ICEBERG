@@ -27,13 +27,26 @@ test("ui-iceberg skill has Agent Skills-compatible frontmatter", async () => {
   assert.ok(description.length <= 1024, "description must fit Agent Skills limit");
   assert.match(description, /hidden UI bugs|hidden UI/i);
   assert.match(description, /Playwright/i);
-  assert.match(description, /deceptive witness/i);
+  assert.match(description, /deceptive evidence/i);
 
   assert.match(frontmatter, /^license: Apache-2\.0$/m);
+  assert.match(frontmatter, /version: "0\.3\.0"/);
   assert.match(skill, /Unknown is not PASS/);
-  assert.match(skill, /Nominally green is not automatically admissible/);
-  assert.match(skill, /check_deceptive_witness/);
-  assert.match(skill, /implementation\/test signal[\s\S]*scenario hypothesis[\s\S]*deceptive-witness check[\s\S]*evidence/);
+  assert.match(skill, /Green is not automatically proven/);
+  assert.match(skill, /prefer MCP `review_claim`/i);
+  assert.match(skill, /implementation signal[\s\S]*scenario hypothesis[\s\S]*probe[\s\S]*evidence/);
+  assert.match(skill, /Do not expose G-codes[\s\S]*ordinary user result/i);
+});
+
+test("ui-iceberg skill keeps advanced vocabulary behind an explicit internal boundary", async () => {
+  const skill = await read("SKILL.md");
+  assert.match(skill, /Under the hood, v0\.5 can evaluate the claim using the canonical 12 semantic types/i);
+  assert.match(skill, /Untraceable Depth/);
+  assert.match(skill, /Inflated Scope/);
+  assert.match(skill, /Loaded Channel/);
+  assert.match(skill, /Loaded Frame/);
+  assert.match(skill, /Unstated Implication/);
+  assert.match(skill, /includeInternal=true/i);
 });
 
 test("ui-iceberg skill progressive-disclosure resources exist", async () => {
