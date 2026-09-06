@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use UI Iceberg in research, benchmarks, or technical writing, please cite this software."
 title: "UI Iceberg"
 type: software
-version: "0.3.0"
-date-released: "2026-09-05"
+version: "0.4.0"
+date-released: "2026-09-06"
 authors:
   - name: "@cyrillesaxo"
     website: "https://github.com/cyrillesaxo"
@@ -13,12 +13,14 @@ license: "Apache-2.0"
 abstract: >-
   UI Iceberg is open-source UI journey assurance and test-scenario intelligence.
   It generates bounded journey scenarios, maps them against existing tests,
+  checks apparent green evidence for bounded deceptive-witness distortions,
   preserves unknown or weak evidence instead of normalizing it to pass, and
   adds scoped admission plus change-reactivation primitives for AI agents.
 keywords:
   - ui testing
   - journey assurance
   - test scenarios
+  - deceptive witness
   - evidence admission
   - change reactivation
   - Playwright
