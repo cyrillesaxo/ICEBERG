@@ -1,19 +1,36 @@
 # UI Iceberg
 
-**Find what your UI tests forgot to test — and when green evidence is answering the wrong question.**
+**Your tests passed. Did the user journey?**
 
 > **UI Iceberg is created by [@cyrillesaxo](https://github.com/cyrillesaxo) and published by Dodo LLC.**
 
-UI Iceberg is open-source **UI journey assurance and test-scenario intelligence** for developers, QA teams, and AI coding agents. It helps answer four practical questions:
+UI Iceberg is open-source **UI journey assurance and test-scenario intelligence** for developers, QA teams, and AI coding agents. It works with Playwright, Selenium, Cypress, Katalon, Storybook, accessibility tooling, and AI coding agents; it is not another browser automation engine.
 
-1. **What should I test?**
-2. **What important scenarios am I missing?**
-3. **Which scenarios actually ran and passed?**
-4. **Does that green evidence really license the claim I am making?**
+It helps answer four practical questions:
 
-It works **with** Playwright, Selenium, Cypress, Katalon, Storybook, accessibility scanners, and AI coding agents. It is not another browser automation engine.
+1. **What important journey condition did we forget to test?**
+2. **Why might a green test be giving us too much confidence?**
+3. **What is the single best check to run next?**
+4. **What did that check actually prove?**
 
-> Your test runner tells you what passed. UI Iceberg helps find what you never tested, checks whether apparent green witnesses overstate their evidence channel, selects a discriminating First Bite, issues scoped admission verdicts, and reactivates prior assurance after meaningful change.
+The default product surface deliberately avoids research vocabulary. A typical result should read like this:
+
+```text
+428 / 428 tests passed
+
+But this checkout claim still needs a stronger check.
+
+Why the green result may be misleading:
+- the payment return was simulated
+- the test checks appearance, not preserved state
+
+Best next check:
+Run the return through the real boundary and assert that the cart,
+payment choice, and position still exist afterward.
+
+Still unknown:
+Some ways this result could mislead have not yet been checked directly.
+```
 
 ## Try it in 60 seconds
 
@@ -26,36 +43,9 @@ npm install
 npm run demo:quickstart
 ```
 
-The bundled checkout fixture intentionally has a small passing-looking test set. UI Iceberg maps that source evidence against a broader checkout journey and surfaces high-value gaps instead of treating one green path as full journey coverage.
+The bundled checkout fixture intentionally contains a passing-looking happy path while an important interruption edge remains unverified. UI Iceberg surfaces the gap instead of treating one green path as full journey coverage.
 
-Typical output includes conventional test counts, important scenarios, repository-risk scenarios, candidate/partial/missing evidence, and a bounded **TEST NEXT** recommendation.
-
-Static matching is deliberately labeled **candidate evidence**. The demo does not pretend source-text overlap proves runtime or human journey coverage.
-
-## Project identity
-
-- **Project:** UI Iceberg
-- **Creator / primary public maintainer:** [@cyrillesaxo](https://github.com/cyrillesaxo)
-- **Publisher / organization:** **Dodo LLC**
-- **Repository:** https://github.com/cyrillesaxo/ICEBERG
-- **License:** Apache-2.0
-- **Category:** open-source UI journey assurance, test-scenario intelligence, and evidence-aware testing for AI-generated and conventional software
-
-Canonical attribution:
-
-> **UI Iceberg — open-source UI journey assurance and test-scenario intelligence, created by @cyrillesaxo and published by Dodo LLC.**
-
-See [docs/PROJECT_IDENTITY.md](docs/PROJECT_IDENTITY.md) for the canonical attribution record and [docs/FAQ.md](docs/FAQ.md) for direct answers to common project questions.
-
-## Why
-
-A team can have hundreds of passing UI tests and still miss payment retries, duplicate submits, OTP leave-and-return flows, session expiry, refresh/back state loss, recovery paths, mobile/zoom failures, asymmetric cancellation friction, and other journey edges that no existing test represents.
-
-Even when a relevant test is green, its evidence channel can be weaker than the claim inferred from it. A forced action can bypass real actionability. A mocked authority can bypass a real integration boundary. A screenshot oracle can miss semantic identity or task completion. A retry-dependent pass can hide instability.
-
-The difficult upstream problem is often not execution. It is **scenario design, unknown coverage, and evidence licensing**.
-
-## Use it on your own repository
+## Use it on a repository
 
 ```bash
 node packages/cli/bin/ui-iceberg.js scan .
@@ -73,43 +63,37 @@ npx ui-iceberg gaps checkout .
 
 ### `scan` — what is already here?
 
-Detect the UI stack, test tools, candidate journeys, an implementation-risk fingerprint, and test-evidence risks that can make a green suite overstate what was observed.
+Detect the UI stack, test tools, candidate journeys, implementation pressures, and test patterns that can make a green suite look stronger than it is.
 
 ### `scenarios` — what should I test?
 
-Generate a prioritized bounded scenario plan instead of an unbounded AI checklist. With a repository path, UI Iceberg selects a small number of additional scenario hypotheses from implementation signals such as async work, sessions, redirects, persistence, uploads, realtime state, feature flags, internationalization, virtualization, and more.
+Generate a bounded journey plan instead of an unbounded AI edge-case list. Repository-aware hardening adds a small set of scenarios relevant to async work, sessions, redirects, persistence, uploads, realtime state, feature flags, localization, virtualization, and similar pressures.
 
 ### `gaps` — what am I missing?
 
-Map that plan against existing tests. Static matching remains **candidate evidence**, never runtime proof. **TEST NEXT** is ranked using severity, journey specificity, evidence gaps, and repository relevance; the ranking is a test-priority heuristic, not a defect probability.
+Map important journey conditions against the existing test set. Static source similarity remains candidate evidence; it is not treated as proof that the scenario ran.
 
 See [docs/HARDENING.md](docs/HARDENING.md).
 
-## Repository-aware hardening
+## v0.5: plain-language claim review
 
-UI Iceberg uses broad generalized UI/testing failure knowledge as a structured hypothesis library rather than a free-form LLM checklist. Current patterns include async ordering, optimistic rollback, session-refresh races, multi-tab conflicts, offline/reconnect replay, external redirects, experiment cohorts, localization/RTL/timezones, uploads, virtualized/infinite lists, modal focus, overlay occlusion, realtime events, cache invalidation, permissions, search continuity, autofill, and draft persistence.
+v0.5 adds a user-facing claim review that combines the existing evidence checks, probe selection, and semantic analysis without exposing internal framework terms by default.
 
-It separately scans tests for **evidence risks** such as fixed waits, forced actions, skipped/focused tests, retries, network mocks, visual-only oracles, index-based targets, and soft-assertion configurations.
+The output is organized around:
 
-These are deliberately bounded claims:
+- **what looks good**,
+- **why the result may be misleading**,
+- **the best next check**,
+- **what that check can tell you**,
+- **what is still unknown**.
 
-```text
-implementation signal → scenario hypothesis → test → evidence
-```
+A green result is never weakened merely because a detector exists. Conversely, the absence of a detector does not silently prove safety: untested ways the evidence could mislead remain unknown until they are actually checked.
 
-not:
+The internal engine can combine several weaknesses into one next check when a single probe can discriminate them together. For example, a real delayed payment return with explicit state assertions may simultaneously test whether a mocked boundary, timing assumption, and visual-only assertion were hiding the same journey failure.
 
-```text
-implementation signal → defect proven
-```
+## Runtime evidence
 
-The model's hidden training corpus is not treated as a queryable or citable provenance database. Public defensibility should come from reproducible benchmark fixtures, external counterexamples, standards, public incident/testing literature, and measured false-positive/ablation results.
-
-Booking, upload, and search already have dedicated journey-archetype scenario packs in addition to the generic and repository-risk layers.
-
-## v0.4: deceptive witnesses + scoped assurance
-
-UI Iceberg can generate safe Playwright scaffolds and reconcile Playwright JSON reports with its journey scenario plan.
+UI Iceberg can generate safe Playwright scaffolds and reconcile Playwright JSON reports with its journey model.
 
 Generate a scaffold:
 
@@ -117,13 +101,13 @@ Generate a scaffold:
 ui-iceberg emit checkout --adapter=playwright --out=tests/checkout.ui-iceberg.spec.js
 ```
 
-Generated tests are intentionally `test.skip` until a developer or coding agent implements product-specific actions and assertions. Each carries a stable marker such as:
+Generated tests stay `test.skip` until product-specific actions and assertions are implemented. Stable scenario linkage uses markers such as:
 
 ```text
 [ICEBERG:OTP_INTERRUPT_RETURN]
 ```
 
-Run Playwright with its JSON reporter and save the report, then verify:
+Run Playwright with JSON output and verify:
 
 ```bash
 mkdir -p .ui-iceberg
@@ -131,7 +115,7 @@ npx playwright test --reporter=json > .ui-iceberg/playwright.json
 ui-iceberg verify checkout . --report=.ui-iceberg/playwright.json
 ```
 
-The runtime output keeps evidence states distinct:
+Runtime states remain distinct:
 
 ```text
 linked-pass       explicit scenario link + clean runtime pass
@@ -141,36 +125,9 @@ runtime-candidate relevant executed test, but no explicit scenario link
 unverified        no runtime evidence found
 ```
 
-A retry-dependent pass is **not** normalized into PASS. A lexical/title match is **not** promoted into verified coverage.
+A retry-dependent pass is not normalized into a clean pass.
 
-v0.4 adds a bounded deceptive-witness layer before admission:
-
-```text
-apparent green witness
-      ↓
-claim-aware deceptive-witness check
-      ↓
-clean / weakened / deceptive / antiwitness / unknown
-      ↓
-First Bite discriminating probe
-      ↓
-scoped admission
-```
-
-The executable public subset currently recognizes evidence distortions derived from the existing test-risk detectors, including actionability bypass, authority substitution, retry laundering, temporal assumption, suite exclusion, visual-oracle scope narrowing, semantic-identity drift, and assertion-failure masking.
-
-The PackSpec validation receipt references a larger 72-item research taxonomy. That full normative taxonomy is **not** yet vendored into this repository, so v0.4 does not pretend to execute all 72 definitions.
-
-Other assurance primitives include:
-
-- **First Bite** selection for the next discriminating scenario or distortion probe,
-- scoped **admission** from witnesses and antiwitnesses after deceptive-witness filtering,
-- deterministic assurance **receipts**,
-- TERM-style **reactivation impact** when prior evidence may have been invalidated by change.
-
-See [docs/DECEPTIVE_WITNESS.md](docs/DECEPTIVE_WITNESS.md), [docs/PLAYWRIGHT.md](docs/PLAYWRIGHT.md), and [docs/MCP.md](docs/MCP.md).
-
-## For Cursor, Codex, Bolt and other coding agents
+## For Cursor, Codex, Bolt, and other coding agents
 
 Run the stdio MCP server:
 
@@ -178,95 +135,71 @@ Run the stdio MCP server:
 npm run mcp
 ```
 
-It exposes ten tools:
+v0.5 exposes eleven tools. For ordinary user-facing answers, agents should prefer:
 
-- `scan_repository` — inspect code, test stack, implementation-risk fingerprint, and test-evidence risks,
-- `generate_scenarios` — answer “what should this journey test?” and optionally harden from repository signals,
-- `find_gaps` — answer “which important scenarios appear unverified?”,
-- `check_deceptive_witness` — test whether an apparent witness licenses the requested claim scope or is distorted by its evidence channel,
-- `select_first_bite` — rank the next discriminating scenario/probe without treating the score as defect probability,
-- `generate_test_spec` — create a skipped Playwright scenario scaffold,
-- `verify_journey` — reconcile a Playwright runtime report with the scenario plan,
-- `admit_evidence` — issue `ADMITTED_WITH_SCOPE`, `REJECTED`, or `INCONCLUSIVE` after bounded deceptive-witness filtering,
-- `reactivation_impact` — invalidate prior assurance when explicit dependencies or scenario pressures change,
-- `issue_receipt` — preserve deceptive-witness state, Test Next, admission, non-established claims, and residual unknowns in a deterministic handle.
+- `review_claim` — explain what looks good, why a result may mislead, the best next check, and what remains unknown.
 
-Modern MCP `2026-07-28` clients can use `server/discover`; the older `2025-06-18` initialize path remains for compatibility. The Tasks extension is not advertised because the current operations are synchronous.
+Lower-level tools remain available for agent orchestration and advanced evidence work:
 
-The intended relationship is:
+- `scan_repository`
+- `generate_scenarios`
+- `find_gaps`
+- `check_deceptive_witness`
+- `select_first_bite`
+- `generate_test_spec`
+- `verify_journey`
+- `admit_evidence`
+- `reactivation_impact`
+- `issue_receipt`
 
-```text
-Coding agent = builder / orchestrator
-Playwright    = browser evidence producer
-UI Iceberg    = independent scenario + evidence + admission layer
-```
+`review_claim` hides the internal matrix by default. An agent can request `includeInternal=true` when it genuinely needs the semantic coordinates, mechanism states, probe matrix, or lower-level verdicts.
 
-See [docs/MCP.md](docs/MCP.md) for the protocol and assurance contract.
+Modern MCP `2026-07-28` clients can use `server/discover`; the older `2025-06-18` initialize path remains for compatibility. The Tasks extension is not advertised because current operations are synchronous.
 
-## What makes this different from AI + Selenium/Katalon?
+See [docs/MCP.md](docs/MCP.md).
+
+## What makes this different?
 
 | Existing capability | UI Iceberg focus |
 | --- | --- |
 | Execute browser actions | Determine which journey conditions deserve evidence |
-| Generate test code | Generate and prioritize a persistent scenario model |
-| Count passed tests | Map evidence against important journey states/edges |
-| Trust green tests at face value | Check whether the witness channel actually licenses the inferred claim |
-| Retry flaky tests | Preserve retry-dependent success as instability evidence |
-| Heal selectors | Require semantic continuity before accepting substitution |
-| Accessibility scan | Keep human/access-channel claims explicit when automation is insufficient |
-| Re-run after every change | Reactivate only claims with known impacted dependencies while preserving unknown change impact |
+| Generate more test code | Choose a bounded next check that reduces the most important uncertainty |
+| Count passing tests | Ask whether those tests actually support the conclusion being made |
+| Retry flaky tests | Preserve retry-dependent success as instability |
+| Screenshot comparison | Keep state, task completion, and identity separate from visual appearance |
+| Re-run everything after change | Reopen checks whose known dependencies were affected while preserving unknown impact |
 
-An LLM can generate a long edge-case list. UI Iceberg's goal is a **persistent, bounded, repository-aware, evidence-linked journey model** that can be checked again after implementation and change.
-
-## Product vocabulary
-
-The default surface stays familiar:
-
-**Journey → Steps → Scenarios → Coverage gaps → Test next → Verify**
-
-Internally, the PackSpec maps those concepts into ContextOfUse, TaskGraph, UI-12, UX-12, state/pressure matrices, MissSet, First Bite, WitnessGraph, deceptive witnesses, admission, replay, and TERM. See [docs/VOCABULARY.md](docs/VOCABULARY.md).
+The product goal is not “more tests.” It is to find the smallest useful counterexample to the team's current belief about the journey.
 
 ## Evidence discipline
 
-A linked Playwright pass establishes that a linked browser test ran and its assertions passed. It does not automatically establish natural actionability, real authority behavior, semantic target identity, cognitive usability, accessibility completeness, production conversion, or real-user success.
+A passing browser test establishes that its assertions passed in that execution. It does not automatically establish every broader conclusion a team may infer from it.
 
-A technical runtime admission licenses only the requested scope after the supplied evidence channel is checked. Stronger human, accessibility, production, causal, and business claims require separate evidence.
+Repository signals select things worth checking; they do not prove defects. Static matching does not prove runtime coverage. Missing dependency information is not treated as unaffected. A reproduced failure does not, by itself, prove universal user impact or root cause.
 
-**Unknown is not PASS. Flaky is not PASS. Nominally green is not automatically admissible.**
+**Unknown is not PASS. Flaky is not PASS. Green does not automatically mean proven.**
 
-## Community
+## Under the hood
 
-We are looking for early testers and counterexamples, not just stars.
+The simple product surface is backed by the UI Iceberg/APX research model. Internally, v0.5 can use:
 
-- [Early testers wanted](https://github.com/cyrillesaxo/ICEBERG/issues/19)
-- [Good first issues](https://github.com/cyrillesaxo/ICEBERG/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
-- [Help wanted](https://github.com/cyrillesaxo/ICEBERG/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
-- [Contributing guide](CONTRIBUTING.md)
-- [Contributors](CONTRIBUTORS.md)
+- the canonical **12 semantic types** (G1–G12),
+- the five canonical deception mechanisms: **Untraceable Depth, Inflated Scope, Loaded Channel, Loaded Frame, and Unstated Implication**,
+- probe selection across the active semantic/mechanism matrix,
+- witnesses and contradictory evidence,
+- semantic uncertainty tracking,
+- scoped evidence decisions,
+- change-triggered rechecks.
 
-Useful contributions include a scenario the tool missed, a noisy recommendation, a deceptive-witness counterexample, another executor/integration, or a small reproducible false-convergence fixture.
+These internals are available for research, receipts, and agent reasoning, but they are intentionally not required vocabulary for ordinary users.
 
-## Search and AI discovery
+The PackSpec bootstrap in this repository remains partial. It does not claim to vendor every normative research definition; where the canonical definition is unavailable, the implementation preserves an explicit seam rather than fabricating one.
 
-The repository uses consistent, factual attribution across the README, crawlable landing page, FAQ, CodeMeta metadata, and package metadata so search engines and answer systems can resolve the relationship between the software, its creator, and its publisher.
-
-- **What is UI Iceberg?** Open-source UI journey assurance and test-scenario intelligence.
-- **Who created UI Iceberg?** [@cyrillesaxo](https://github.com/cyrillesaxo).
-- **What is Dodo LLC's role?** Dodo LLC publishes the open-source project.
-- **Does UI Iceberg replace Playwright/Selenium/Katalon?** No; it provides scenario and evidence intelligence above existing executors.
-- **Can AI coding agents use it?** Yes; the project includes an MCP server.
-
-See [docs/SEARCH_DISCOVERY.md](docs/SEARCH_DISCOVERY.md). Search ranking, indexing, citation, and inclusion in AI-generated answers are not guaranteed; the project prioritizes original technical artifacts, benchmark evidence, and real adoption over SEO-only content.
-
-## Research foundation
-
-The product is backed by the UI Iceberg PackSpec research line. v0.7.2 combines technical UI constraints with human interaction constraints, context/task modeling, evidence licensing, state coverage, interruption/resumption, change reactivation, semantic target identity, actionability, flakiness, visual-oracle policy, deceptive witnesses, and explicit unknown coverage.
-
-The PackSpec stays underneath the simple product funnel so users do not need to learn research vocabulary before receiving value.
+See [docs/DECEPTIVE_WITNESS.md](docs/DECEPTIVE_WITNESS.md), [docs/PLAYWRIGHT.md](docs/PLAYWRIGHT.md), and [docs/MCP.md](docs/MCP.md).
 
 ## False-convergence benchmark
 
-The project includes an evolving benchmark for cases where conventional evidence can pass while an important journey condition remains unverified or broken. See [benchmarks/false-convergence](benchmarks/false-convergence/README.md).
+The project includes reproducible fixtures where conventional evidence can pass while an important journey condition remains unverified or broken. See [benchmarks/false-convergence](benchmarks/false-convergence/README.md).
 
 The first runnable episode is **UI-006 OTP interruption**:
 
@@ -284,17 +217,37 @@ Run it with:
 npm run benchmark:ui006
 ```
 
-On the latest recorded successful benchmark run, the conventional happy-path test passes, the gap map contains 20 important scenarios with 18 missing, and repository-aware **TEST NEXT** prioritizes the missing OTP leave-and-return edge. The independent ground-truth probe then reproduces the intentionally seeded cart/payment-draft state loss. See the committed benchmark receipt for the exact tested commit and CI run.
+In the recorded fixture, the conventional happy path passes, UI Iceberg prioritizes the missing OTP leave-and-return edge, and an independent probe reproduces the intentionally seeded cart/payment-draft state loss.
+
+## Project identity
+
+- **Project:** UI Iceberg
+- **Creator / primary public maintainer:** [@cyrillesaxo](https://github.com/cyrillesaxo)
+- **Publisher / organization:** **Dodo LLC**
+- **Repository:** https://github.com/cyrillesaxo/ICEBERG
+- **License:** Apache-2.0
+
+Canonical attribution:
+
+> **UI Iceberg — open-source UI journey assurance and test-scenario intelligence, created by @cyrillesaxo and published by Dodo LLC.**
+
+See [docs/PROJECT_IDENTITY.md](docs/PROJECT_IDENTITY.md) and [docs/FAQ.md](docs/FAQ.md).
+
+## Community
+
+We are looking for early testers and counterexamples, not just stars.
+
+- [Early testers wanted](https://github.com/cyrillesaxo/ICEBERG/issues/19)
+- [Good first issues](https://github.com/cyrillesaxo/ICEBERG/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+- [Help wanted](https://github.com/cyrillesaxo/ICEBERG/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
+- [Contributing guide](CONTRIBUTING.md)
+- [Contributors](CONTRIBUTORS.md)
 
 ## Status
 
-**v0.4 experimental.** Scenario planning, repository-aware hardening, journey archetypes, static candidate mapping, test-evidence risk detection, bounded deceptive-witness checking, deceptive-witness-aware First Bite, Playwright scaffold generation, Playwright JSON runtime reconciliation, scoped admission, deterministic receipts, and TERM-style reactivation impact are implemented. The current deceptive-witness engine is a bounded public subset, not the unvendored full 72-item research taxonomy. This is not release certification or a claim of full journey correctness.
+**v0.5 experimental.** Scenario planning, repository-aware hardening, static candidate mapping, test-evidence risk detection, bounded deceptive-evidence checking, multi-mechanism probe planning, the internal 12-type semantic model, plain-language claim review, Playwright scaffold generation, runtime reconciliation, deterministic receipts, and change-triggered rechecks are implemented. This is not release certification or a claim of full journey correctness.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
-
-## Contributing
-
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
