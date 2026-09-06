@@ -14,78 +14,21 @@ From a UI Iceberg checkout:
 npm install
 ```
 
-The package exposes the `ui-iceberg` binary from `packages/cli/bin/ui-iceberg.js`.
-
 ## CLI
-
-### Scan
 
 ```bash
 ui-iceberg scan [path] [--json]
-```
-
-Purpose: detect the UI/test stack, candidate journeys, implementation-risk fingerprint, and test-evidence risks.
-
-### Generate scenarios
-
-```bash
 ui-iceberg scenarios <journey> [path] [--limit=N] [--pattern-limit=N] [--json]
-```
-
-Purpose: create a prioritized journey scenario plan. Supplying a repository path enables repository-aware hardening from implementation signals.
-
-### Find gaps
-
-```bash
 ui-iceberg gaps <journey> [path] [--limit=N] [--pattern-limit=N] [--json]
-```
-
-Purpose: map the scenario plan against existing tests and rank `TEST NEXT`.
-
-Static matching is candidate evidence, not runtime proof.
-
-### Emit Playwright scaffold
-
-```bash
 ui-iceberg emit <journey> --adapter=playwright [--out=path] [--limit=N] [--json]
-```
-
-Generated scenarios are `test.skip` by default. Implement real product actions and assertions before enabling them.
-
-### Verify Playwright evidence
-
-```bash
 ui-iceberg verify <journey> [path] --report=playwright.json [--json]
 ```
 
-Purpose: reconcile Playwright runtime evidence with the ICEBERG scenario model.
-
-If running directly from the repository instead of an installed binary, substitute:
-
-```bash
-node packages/cli/bin/ui-iceberg.js <command> ...
-```
-
-## Playwright report workflow
-
-One simple way to obtain the report:
-
-```bash
-mkdir -p .ui-iceberg
-npx playwright test --reporter=json > .ui-iceberg/playwright.json
-```
-
-Then:
-
-```bash
-ui-iceberg verify <journey> . --report=.ui-iceberg/playwright.json
-```
-
-If the project already configures the JSON reporter to a file, use that report instead.
+Static source matching is candidate evidence, not runtime proof. Generated Playwright scenarios are `test.skip` until real product actions and assertions are implemented.
 
 ## Stable scenario linkage
 
-Prefer explicit stable linkage over lexical matching. Accepted forms include:
+Prefer explicit linkage:
 
 ```text
 [ICEBERG:SCENARIO_ID]
@@ -93,43 +36,93 @@ Prefer explicit stable linkage over lexical matching. Accepted forms include:
 ICEBERG_SCENARIO=SCENARIO_ID
 ```
 
-An `iceberg` or `ui-iceberg` Playwright annotation whose description contains one of these markers may also be used.
-
 ## Runtime evidence states
 
-Preserve these states exactly:
-
-| State | Meaning | Claim license |
-| --- | --- | --- |
-| `linked-pass` | Explicit scenario link + clean runtime pass | Nominal runtime support; deceptive-witness filtering still applies to the requested claim scope. |
-| `linked-flaky` | Explicit link + retry-dependent pass | The scenario is unstable; do not normalize to PASS. |
-| `linked-fail` | Explicit link + runtime failure | The linked execution failed; inspect assertion/action evidence. |
-| `runtime-candidate` | Executed test appears relevant but lacks explicit scenario link | Runtime evidence exists, but scenario coverage is not established. |
-| `unverified` | No runtime evidence found | Unknown; never report PASS. |
+| State | Meaning |
+| --- | --- |
+| `linked-pass` | Explicit scenario link + clean runtime pass; broader conclusions still require claim review |
+| `linked-flaky` | Retry-dependent success; never normalize to clean PASS |
+| `linked-fail` | Linked runtime execution failed |
+| `runtime-candidate` | Relevant execution exists but scenario linkage is not explicit |
+| `unverified` | No runtime evidence found |
 
 ## MCP server
 
-Start the stdio server from the UI Iceberg repository:
+Start:
 
 ```bash
 npm run mcp
 ```
 
-The v0.4 MCP surface exposes ten tools and supports both the legacy 2025 handshake and modern MCP `2026-07-28` `server/discover` discovery.
+v0.5 exposes eleven tools and supports modern MCP `2026-07-28` plus the legacy `2025-06-18` initialize path.
 
-### Planning and evidence collection
+### Preferred user-facing operation: `review_claim`
 
-#### `scan_repository`
+Use this when the goal is to explain the current state to an ordinary user.
 
 ```json
 {
-  "path": "/path/to/repository"
+  "claim": {
+    "id": "checkout-otp",
+    "statement": "Checkout survives OTP interruption and return."
+  },
+  "scope": "technical-ui-runtime",
+  "evidence": [
+    {
+      "id": "W1",
+      "state": "linked-pass",
+      "channel": "playwright",
+      "scenarioId": "OTP_INTERRUPT_RETURN",
+      "evidenceRisks": ["NETWORK_MOCK", "VISUAL_ONLY_ORACLE"]
+    }
+  ]
 }
+```
+
+Default output is plain language:
+
+```text
+what looks good
+why the result may be misleading
+best next check
+what that check can tell you
+what is still unknown
+```
+
+Do not request `includeInternal=true` unless the agent/research workflow genuinely needs the semantic/deception matrix.
+
+### Internal claim review
+
+When `includeInternal=true`, `review_claim` exposes:
+
+- the canonical 12 semantic types active for the claim,
+- all five canonical deception mechanisms,
+- per-mechanism state (`triggered`, `checked-clear`, or `unknown`),
+- candidate probes,
+- the probe × mechanism × semantic-type matrix,
+- lower-level evidence verdict and scenario ranking.
+
+No detector firing does **not** clear a mechanism. It stays `unknown` until explicitly checked.
+
+The five canonical mechanisms are:
+
+```text
+UNTRACEABLE_DEPTH
+INFLATED_SCOPE
+LOADED_CHANNEL
+LOADED_FRAME
+UNSTATED_IMPLICATION
+```
+
+### `scan_repository`
+
+```json
+{ "path": "/path/to/repository" }
 ```
 
 Detects candidate journeys, implementation pressures, test tools, and evidence risks. Static signals remain hypotheses.
 
-#### `generate_scenarios`
+### `generate_scenarios`
 
 ```json
 {
@@ -140,9 +133,7 @@ Detects candidate journeys, implementation pressures, test tools, and evidence r
 }
 ```
 
-Generates a bounded scenario plan. `journey` is required.
-
-#### `find_gaps`
+### `find_gaps`
 
 ```json
 {
@@ -153,22 +144,18 @@ Generates a bounded scenario plan. `journey` is required.
 }
 ```
 
-Maps candidate evidence and returns prioritized gaps. Do not treat static candidate mapping as verification.
+### `check_deceptive_witness`
 
-#### `check_deceptive_witness`
-
-Use this before trusting an apparent green witness when repository/test evidence exposes a risk such as forced action, network mocking, retry policy, visual-only oracle, fixed wait, or ordinal targeting.
+Advanced operation for one apparent witness:
 
 ```json
 {
   "claim": {
     "id": "checkout-otp-return",
-    "scope": "technical-ui-runtime",
-    "statement": "Checkout survives the real OTP interruption and return boundary."
+    "scope": "technical-ui-runtime"
   },
   "witness": {
     "id": "W1",
-    "scenarioId": "OTP_INTERRUPT_RETURN",
     "state": "linked-pass",
     "channel": "playwright",
     "evidenceRisks": ["NETWORK_MOCK"]
@@ -176,47 +163,13 @@ Use this before trusting an apparent green witness when repository/test evidence
 }
 ```
 
-A typical bounded result is:
+A distortion finding diagnoses evidence quality. It is not proof that the corresponding product defect exists.
 
-```text
-classification: DECEPTIVE_WITNESS_CANDIDATE
-distortion: AUTHORITY_SUBSTITUTION
-recommended probe: PROBE_REAL_AUTHORITY_BOUNDARY
-```
+### `select_first_bite`
 
-This means the evidence channel blocks the requested claim scope. It does **not** mean the product defect is proven.
+Advanced operation for ranking a discriminating scenario/probe. Its score is a testing heuristic, not a defect probability.
 
-#### `select_first_bite`
-
-```json
-{
-  "gaps": [
-    {
-      "id": "OTP_INTERRUPT_RETURN",
-      "priority": "critical",
-      "evidence": { "state": "partial", "score": 0.5 },
-      "source": "journey-profile"
-    }
-  ],
-  "riskSignals": ["external-redirect", "browser-persistence"],
-  "deceptiveWitnesses": [
-    {
-      "claim": { "id": "otp-return", "scope": "technical-ui-runtime" },
-      "scenarioId": "OTP_INTERRUPT_RETURN",
-      "witness": {
-        "id": "W1",
-        "scenarioId": "OTP_INTERRUPT_RETURN",
-        "state": "linked-pass",
-        "evidenceRisks": ["NETWORK_MOCK"]
-      }
-    }
-  ]
-}
-```
-
-When a claim-blocking deceptive witness contaminates the top scenario, `recommendedNext` becomes the distortion-specific probe rather than blindly accepting the apparent support. The recommendation is a testing heuristic, not defect probability.
-
-#### `generate_test_spec`
+### `generate_test_spec`
 
 ```json
 {
@@ -226,9 +179,9 @@ When a claim-blocking deceptive witness contaminates the top scenario, `recommen
 }
 ```
 
-Returns a skipped Playwright scenario scaffold.
+Returns a skipped Playwright scaffold.
 
-#### `verify_journey`
+### `verify_journey`
 
 ```json
 {
@@ -240,38 +193,19 @@ Returns a skipped Playwright scenario scaffold.
 }
 ```
 
-Reconciles Playwright runtime evidence with the scenario model. `linked-flaky` stays flaky.
+### `admit_evidence`
 
-### Assurance and change control
+Advanced scoped verdict operation. Possible verdicts:
 
-#### `admit_evidence`
-
-```json
-{
-  "claim": {
-    "id": "cart-preserved-after-otp",
-    "statement": "Cart state survives the OTP interruption and return."
-  },
-  "scope": "technical-ui-runtime",
-  "evidence": [
-    {
-      "id": "E1",
-      "state": "linked-pass",
-      "channel": "playwright",
-      "evidenceRisks": ["NETWORK_MOCK"]
-    }
-  ],
-  "antiwitnesses": []
-}
+```text
+ADMITTED_WITH_SCOPE
+REJECTED
+INCONCLUSIVE
 ```
 
-Possible verdicts are `ADMITTED_WITH_SCOPE`, `REJECTED`, and `INCONCLUSIVE`.
+Use it for governance/receipt logic, not as the default user vocabulary.
 
-v0.4 filters strong nominal support through the bounded deceptive-witness classifier before licensing the requested scope. If every strong witness is deceptive for that scope, admission remains `INCONCLUSIVE`. A clean independent witness can still license the scope while the deceptive witness remains explicit in the receipt.
-
-A technical runtime admission does not license cognitive usability, accessibility completeness, production journey health, causal root cause, or business outcome. Candidate evidence and flaky execution remain inconclusive.
-
-#### `reactivation_impact`
+### `reactivation_impact`
 
 ```json
 {
@@ -280,7 +214,6 @@ A technical runtime admission does not license cognitive usability, accessibilit
   "scenarios": [
     {
       "id": "OTP_INTERRUPT_RETURN",
-      "evidence": { "state": "linked-pass" },
       "dependencies": {
         "files": ["src/payment/callback.js"],
         "signals": ["external-redirect"]
@@ -290,41 +223,42 @@ A technical runtime admission does not license cognitive usability, accessibilit
 }
 ```
 
-Returns scenarios whose prior assurance state should be reactivated. Unmapped changed files remain `unknown`; they are not silently classified as unaffected.
+Unmapped changed files remain unknown rather than silently unaffected.
 
-#### `issue_receipt`
+### `issue_receipt`
 
-```json
-{
-  "project": "checkout-app",
-  "journey": "checkout",
-  "deceptiveWitnessAudit": {
-    "counts": { "DECEPTIVE_WITNESS_CANDIDATE": 1 }
-  },
-  "testNext": { "id": "OTP_INTERRUPT_RETURN" },
-  "admission": { "verdict": "INCONCLUSIVE" },
-  "allowedConclusion": "The mocked frontend path passed, but the real authority return boundary remains unverified.",
-  "notEstablished": ["production authority behavior", "cognitive usability"],
-  "residualUnknowns": ["real OTP callback continuity"]
-}
-```
+Receipts may include the user-facing claim review plus lower-level evidence state. A receipt preserves inputs and boundaries; it does not create new evidence.
 
-Returns a deterministic `receipt://...` handle and preserves the supplied evidence boundary, including deceptive-witness state.
+## Recommended flow
 
-## Recommended MCP sequence
+For normal product work:
 
 ```text
 scan_repository
       ↓
 find_gaps
       ↓
-inspect apparent green evidence with check_deceptive_witness
+review_claim
+      ↓
+run best next check
+      ↓
+verify_journey
+      ↓
+review_claim again
+```
+
+For advanced assurance:
+
+```text
+scan_repository
+      ↓
+find_gaps
+      ↓
+check_deceptive_witness
       ↓
 select_first_bite
       ↓
-generate_test_spec / implement targeted distortion probe
-      ↓
-execute probe in the real product/executor
+execute probe
       ↓
 verify_journey
       ↓
@@ -332,38 +266,18 @@ admit_evidence
       ↓
 issue_receipt
       ↓
-code changes later
-      ↓
-reactivation_impact
+reactivation_impact after change
 ```
 
-The MCP is an executable assurance interface, not the source of truth by itself. Evidence comes from the repository, runtime executor, controlled probe, or licensed human/task channel.
+## Playwright report workflow
 
-## Deceptive-witness taxonomy boundary
-
-The PackSpec validation receipt references a larger 72-item research taxonomy. The full normative YAML is not vendored in this repository, so the v0.4 executable classifier intentionally uses only the bounded public subset derived from current test-evidence-risk detectors. Do not claim 72-rule execution until those normative definitions are actually vendored and validated.
-
-## MCP 2026-07-28 behavior
-
-Modern requests carry `io.modelcontextprotocol/protocolVersion=2026-07-28` in request `_meta`. The server implements `server/discover`, stamps server identity in response `_meta`, and returns cache hints on `tools/list`.
-
-The server retains the older `initialize` path for compatibility with 2025-era clients. It does not advertise the Tasks extension yet because current ICEBERG operations are synchronous. Do not claim task support until a real asynchronous/durable execution path exists.
-
-## Built-in journey normalization
-
-The current catalog recognizes common aliases for:
-
-- `checkout`
-- `signup`
-- `login`
-- `password_reset`
-- `subscription_cancel`
-
-Other journey names remain valid and receive the generic scenario layer plus repository-aware hardening when signals exist.
+```bash
+mkdir -p .ui-iceberg
+npx playwright test --reporter=json > .ui-iceberg/playwright.json
+ui-iceberg verify <journey> . --report=.ui-iceberg/playwright.json
+```
 
 ## Useful repository scripts
-
-From the UI Iceberg repository:
 
 ```bash
 npm test
@@ -372,4 +286,4 @@ npm run demo:quickstart
 npm run benchmark:ui006
 ```
 
-The UI-006 benchmark is a false-convergence fixture: a happy-path test can pass while the OTP leave-and-return scenario remains missing and the seeded state-loss defect is reproduced by an independent probe.
+The UI-006 benchmark remains a false-convergence fixture: the happy path passes while an important OTP return condition is missing, and an independent probe reproduces the intentionally seeded state-loss defect.
