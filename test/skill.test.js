@@ -27,10 +27,13 @@ test("ui-iceberg skill has Agent Skills-compatible frontmatter", async () => {
   assert.ok(description.length <= 1024, "description must fit Agent Skills limit");
   assert.match(description, /hidden UI bugs|hidden UI/i);
   assert.match(description, /Playwright/i);
+  assert.match(description, /deceptive witness/i);
 
   assert.match(frontmatter, /^license: Apache-2\.0$/m);
   assert.match(skill, /Unknown is not PASS/);
-  assert.match(skill, /implementation signal[\s\S]*scenario hypothesis[\s\S]*evidence/);
+  assert.match(skill, /Nominally green is not automatically admissible/);
+  assert.match(skill, /check_deceptive_witness/);
+  assert.match(skill, /implementation\/test signal[\s\S]*scenario hypothesis[\s\S]*deceptive-witness check[\s\S]*evidence/);
 });
 
 test("ui-iceberg skill progressive-disclosure resources exist", async () => {
