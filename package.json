@@ -1,6 +1,6 @@
 {
   "name": "ui-iceberg",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Open-source UI journey assurance and test-scenario intelligence created by @cyrillesaxo and published by Dodo LLC.",
   "type": "module",
   "private": false,
@@ -37,7 +37,7 @@
   },
   "scripts": {
     "test": "node --test test",
-    "check": "node --check packages/cli/bin/ui-iceberg.js && node --check packages/core/src/index.js && node --check packages/core/src/test-evidence-risks.js && node --check packages/core/src/prioritize.js && node --check packages/assurance/src/deceptive-witness.js && node --check packages/assurance/src/index.js && node --check packages/scenarios/src/catalog.js && node --check packages/scenarios/src/journey-archetypes.js && node --check packages/scenarios/src/failure-patterns.js && node --check packages/runtime/src/index.js && node --check packages/adapters/playwright/src/index.js && node --check mcp/server/index.js",
+    "check": "node --check packages/cli/bin/ui-iceberg.js && node --check packages/core/src/index.js && node --check packages/core/src/test-evidence-risks.js && node --check packages/core/src/prioritize.js && node --check packages/assurance/src/deceptive-witness.js && node --check packages/assurance/src/semantic-claim.js && node --check packages/assurance/src/index.js && node --check packages/scenarios/src/catalog.js && node --check packages/scenarios/src/journey-archetypes.js && node --check packages/scenarios/src/failure-patterns.js && node --check packages/runtime/src/index.js && node --check packages/adapters/playwright/src/index.js && node --check mcp/server/index.js",
     "mcp": "node mcp/server/index.js",
     "demo": "node packages/cli/bin/ui-iceberg.js scenarios checkout",
     "demo:quickstart": "node packages/cli/bin/ui-iceberg.js gaps checkout examples/quickstart-checkout",
@@ -53,8 +53,8 @@
     "test-scenario-intelligence",
     "test-scenarios",
     "unknown-coverage",
-    "deceptive-witness",
     "evidence-governance",
+    "claim-review",
     "playwright",
     "selenium",
     "cypress",
