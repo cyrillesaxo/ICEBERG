@@ -22,14 +22,16 @@ function print(result) {
   console.log(`Admission               ${semantic.admission.status}`);
   console.log(`Semantic entropy H_S    ${format(semantic.summary.semanticEntropy)}`);
   console.log(`Semantic risk R_S       ${format(semantic.summary.semanticRisk)}`);
-  console.log(`Typed drift ||Δ_G||     ${format(semantic.summary.driftNorm)}`);
+  console.log(`Reference ||Δ_G||       ${format(semantic.summary.driftNorm)}`);
   console.log(`Active G coordinates    ${semantic.summary.activeCoordinates}`);
   console.log(`Deceptive witnesses     ${semantic.summary.deceptiveWitnesses}`);
+  console.log(`Flux mode               ${semantic.summary.entropyRiskFlux.mode}`);
   console.log(`Flux classification     ${semantic.summary.entropyRiskFlux.classification}`);
 
-  console.log("\nTYPED SEMANTIC DRIFT");
+  console.log("\nTYPED SEMANTIC DISPLACEMENT");
   for (const coordinate of semantic.coordinates.filter((item) => item.applicable)) {
-    console.log(`${coordinate.id.padEnd(4)} ${coordinate.name.padEnd(13)} Δ=${String(coordinate.drift).padEnd(7)} H=${format(coordinate.entropy)} R=${format(coordinate.risk)} ${coordinate.direction}`);
+    console.log(`${coordinate.id.padEnd(4)} ${coordinate.name.padEnd(13)} Δref=${String(coordinate.referenceDisplacement).padEnd(7)} H=${format(coordinate.entropy)} R=${format(coordinate.risk)} ${coordinate.referenceDirection}`);
+    console.log(`     trajectory: ${coordinate.trajectoryDirection}${Number.isFinite(coordinate.temporalDelta) ? ` · Δt=${format(coordinate.temporalDelta)}` : ""}`);
     if (coordinate.pressures.length) console.log(`     pressures: ${coordinate.pressures.join(", ")}`);
     if (coordinate.deceptiveWitnesses.length) console.log(`     DW: ${coordinate.deceptiveWitnesses.join(", ")}`);
   }
@@ -49,6 +51,7 @@ function print(result) {
     for (const coupling of semantic.couplingCandidates.slice(0, 5)) {
       console.log(`• ${coupling.id} · scenarios: ${coupling.scenarioIds.join(", ")}${coupling.pressures.length ? ` · pressures: ${coupling.pressures.join(", ")}` : ""}`);
     }
+    console.log("  Couplings are co-activation hypotheses; no tensor weight is invented without evidence.");
   }
 
   if (semantic.firstBite.next) {
@@ -57,6 +60,7 @@ function print(result) {
     console.log(bite.title);
     console.log(`Types: ${bite.semanticTypes.join(", ")}`);
     if (bite.pressures.length) console.log(`Pressures: ${bite.pressures.join(", ")}`);
+    console.log(`Expected uncertainty reduction: ${format(bite.expectedUncertaintyReduction)}`);
     console.log(`Relative cost: ${bite.relativeCost}`);
     console.log(`Why: ${bite.rationale}`);
     console.log(`Boundary: ${bite.boundary}`);
