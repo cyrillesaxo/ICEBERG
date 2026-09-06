@@ -9,7 +9,8 @@ const ANTI_STATES = new Set(["linked-fail", "runtime-fail", "reproduced-antiwitn
 const UNRESOLVED_STATES = new Set(["unknown", "unverified", "candidate", "candidate-covered", "partial", "runtime-candidate"]);
 const FLAKY_STATES = new Set(["linked-flaky"]);
 const EPSILON = 0.01;
-const PRIOR_STRENGTH = 1;
+const PRIOR_ALPHA = 1;
+const PRIOR_BETA = 1;
 
 function uniq(values) {
   return [...new Set(values.filter(Boolean))];
@@ -17,6 +18,10 @@ function uniq(values) {
 
 function clamp(value, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value));
+}
+
+function round(value, digits = 4) {
+  return Number.isFinite(value) ? Number(value.toFixed(digits)) : null;
 }
 
 function binaryEntropy(p) {
@@ -34,7 +39,9 @@ function normalizeSemanticType(value = "") {
 }
 
 function normalizeTypeList(values = []) {
-  return uniq(values.map((value) => typeof value === "string" ? value : value?.id || value?.code).map(normalizeSemanticType));
+  return uniq(values
+    .map((value) => typeof value === "string" ? value : value?.id || value?.code)
+    .map(normalizeSemanticType));
 }
 
 function auditMap(admission = {}) {
@@ -53,31 +60,40 @@ function deceptiveTypesForWitness(challenge = {}, witnessId) {
 
 function evidenceValue(state, audit, semanticType, deceptiveTypes, forceAnti = false) {
   if (forceAnti || ANTI_STATES.has(state)) return { nominal: 0, corrected: 0, role: "antiwitness" };
+
   if (SUPPORT_STATES.has(state)) {
     if (audit?.classification === "DECEPTIVE_WITNESS_CANDIDATE" || audit?.classification === "NON_WITNESS_OBLIGATION") {
-      const directlyAffected = deceptiveTypes.includes(semanticType);
-      return directlyAffected
+      return deceptiveTypes.includes(semanticType)
         ? { nominal: 1, corrected: 0.5, role: "support-withheld-on-type" }
         : { nominal: 1, corrected: 0.75, role: "support-narrowed-outside-distortion" };
     }
-    if (audit?.classification === "WEAKENED_WITNESS") return { nominal: 1, corrected: 0.75, role: "weakened-support" };
+    if (audit?.classification === "WEAKENED_WITNESS") {
+      return { nominal: 1, corrected: 0.75, role: "weakened-support" };
+    }
     return { nominal: 1, corrected: 1, role: "support" };
   }
+
   if (FLAKY_STATES.has(state)) {
     return semanticType === SEMANTIC_TYPES.G11_TEMPORAL
       ? { nominal: 0.75, corrected: 0.5, role: "flaky-temporal-support-withheld" }
       : { nominal: 0.75, corrected: 0.65, role: "flaky-support-narrowed" };
   }
-  if (UNRESOLVED_STATES.has(state) || !state) return { nominal: 0.5, corrected: 0.5, role: "unresolved" };
+
+  if (UNRESOLVED_STATES.has(state) || !state) {
+    return { nominal: 0.5, corrected: 0.5, role: "unresolved" };
+  }
   return { nominal: 0.5, corrected: 0.5, role: "unresolved" };
 }
 
 function evidenceCoverage(item, claimTypes, activeTypes) {
   const explicit = normalizeTypeList(item.semanticTypes || item.gapTypes || []);
   const coverage = [{ id: SEMANTIC_TYPES.G8_EVIDENCE, weight: 1, basis: "evidence-channel" }];
+
   if (explicit.length) {
     for (const id of explicit) {
-      if (id !== SEMANTIC_TYPES.G8_EVIDENCE) coverage.push({ id, weight: 1, basis: "explicit-evidence-type" });
+      if (id !== SEMANTIC_TYPES.G8_EVIDENCE) {
+        coverage.push({ id, weight: 1, basis: "explicit-evidence-type" });
+      }
     }
     return coverage;
   }
@@ -100,9 +116,11 @@ function observationRows({ evidence = [], antiwitnesses = [], claimTypes, active
     const key = `${forceAnti ? "anti" : "evidence"}:${id}`;
     if (seen.has(key)) return;
     seen.add(key);
+
     const state = item.state || (forceAnti ? "reproduced-antiwitness" : "unknown");
     const audit = audits.get(id) || null;
     const deceptiveTypes = deceptiveTypesForWitness(challenge, id);
+
     for (const coverage of evidenceCoverage(item, claimTypes, activeTypes)) {
       if (!activeTypes.includes(coverage.id)) continue;
       const value = evidenceValue(state, audit, coverage.id, deceptiveTypes, forceAnti);
@@ -127,10 +145,30 @@ function observationRows({ evidence = [], antiwitnesses = [], claimTypes, active
   return rows;
 }
 
-function posterior(rows, field) {
+function posteriorBreakdown(rows, field) {
+  const terms = rows.map((row) => ({
+    witnessId: row.witnessId,
+    weight: row.weight,
+    value: row[field],
+    product: round(row.weight * row[field]),
+    role: row.role,
+    coverageBasis: row.coverageBasis
+  }));
   const totalWeight = rows.reduce((sum, row) => sum + row.weight, 0);
   const weightedValue = rows.reduce((sum, row) => sum + row.weight * row[field], 0);
-  return clamp((PRIOR_STRENGTH + weightedValue) / (2 * PRIOR_STRENGTH + totalWeight));
+  const numerator = PRIOR_ALPHA + weightedValue;
+  const denominator = PRIOR_ALPHA + PRIOR_BETA + totalWeight;
+  return {
+    formula: "p_hat = (alpha0 + Σ_j w_j*x_j) / (alpha0 + beta0 + Σ_j w_j)",
+    prior: { alpha0: PRIOR_ALPHA, beta0: PRIOR_BETA },
+    terms,
+    weightedEvidenceSum: round(weightedValue),
+    totalEvidenceWeight: round(totalWeight),
+    numerator: round(numerator),
+    denominator: round(denominator),
+    substitution: `(${PRIOR_ALPHA} + ${round(weightedValue)}) / (${PRIOR_ALPHA} + ${PRIOR_BETA} + ${round(totalWeight)})`,
+    result: round(clamp(numerator / denominator))
+  };
 }
 
 function semanticWeights(activeTypes, supplied = {}) {
@@ -174,7 +212,9 @@ function buildCouplings(challenge = {}, activeTypes = []) {
     const types = (DECEPTION_MECHANISMS[state.id]?.semanticTypes || []).filter((id) => activeTypes.includes(id));
     for (let i = 0; i < types.length; i += 1) {
       for (let j = i + 1; j < types.length; j += 1) {
-        const ordered = [types[i], types[j]].sort((a, b) => SEMANTIC_TYPE_CATALOG[a].code.localeCompare(SEMANTIC_TYPE_CATALOG[b].code, undefined, { numeric: true }));
+        const ordered = [types[i], types[j]].sort((a, b) =>
+          SEMANTIC_TYPE_CATALOG[a].code.localeCompare(SEMANTIC_TYPE_CATALOG[b].code, undefined, { numeric: true })
+        );
         const key = `${ordered[0]}×${ordered[1]}`;
         const existing = pairs.get(key) || {
           id: key,
@@ -192,6 +232,7 @@ function buildCouplings(challenge = {}, activeTypes = []) {
       }
     }
   }
+
   return [...pairs.values()].map((item) => ({
     id: item.id,
     semanticTypes: item.semanticTypes,
@@ -207,24 +248,68 @@ function buildProbeFrontier(challenge, coordinates, weights) {
   const byId = new Map(coordinates.map((coordinate) => [coordinate.id, coordinate]));
   return (challenge.probeCandidates || []).map((candidate) => {
     const covered = (candidate.semanticTypesCovered || []).filter((id) => byId.has(id));
-    const entropyCoverage = covered.reduce((sum, id) => sum + weights[id] * byId.get(id).entropy.corrected, 0);
-    const riskCoverage = covered.reduce((sum, id) => sum + weights[id] * byId.get(id).risk.corrected, 0);
+    const entropyTerms = covered.map((id) => ({
+      semanticType: id,
+      weight: round(weights[id]),
+      entropy: byId.get(id).entropy.corrected,
+      product: round(weights[id] * byId.get(id).entropy.corrected)
+    }));
+    const riskTerms = covered.map((id) => ({
+      semanticType: id,
+      weight: round(weights[id]),
+      risk: byId.get(id).risk.corrected,
+      product: round(weights[id] * byId.get(id).risk.corrected)
+    }));
+    const entropyCoverage = entropyTerms.reduce((sum, term) => sum + term.product, 0);
+    const riskCoverage = riskTerms.reduce((sum, term) => sum + term.product, 0);
+    const mechanismCount = candidate.mechanismsCovered?.length || 0;
     const couplingCoverage = Math.max(0, covered.length - 1);
     const cost = Math.max(1, candidate.cost || 1);
-    const value = (2 * entropyCoverage + riskCoverage + (candidate.mechanismsCovered?.length || 0) * 0.5 + couplingCoverage * 0.25) / cost;
+    const numerator = 2 * entropyCoverage + riskCoverage + mechanismCount * 0.5 + couplingCoverage * 0.25;
+    const value = numerator / cost;
+
     return {
       probeId: candidate.id,
       title: candidate.title,
       semanticTypesCovered: covered,
       mechanismsCovered: candidate.mechanismsCovered || [],
-      expectedEntropyCoverage: Number(entropyCoverage.toFixed(4)),
-      decisionRiskCoverage: Number(riskCoverage.toFixed(4)),
+      expectedEntropyCoverage: round(entropyCoverage),
+      decisionRiskCoverage: round(riskCoverage),
       couplingCoverage,
       relativeCost: cost,
-      semanticValue: Number(value.toFixed(4)),
+      semanticValue: round(value),
+      calculation: {
+        formula: "V_probe = (2*E_cov + R_cov + 0.5*M + 0.25*C) / cost",
+        entropyTerms,
+        riskTerms,
+        mechanismCount,
+        couplingCoverage,
+        numerator: round(numerator),
+        denominator: cost,
+        substitution: `(2*${round(entropyCoverage)} + ${round(riskCoverage)} + 0.5*${mechanismCount} + 0.25*${couplingCoverage}) / ${cost}`,
+        result: round(value)
+      },
       boundary: "Semantic value ranks probes by currently unresolved typed evidence; it is not expected defect yield, monetary ROI, or calibrated information gain."
     };
   }).sort((a, b) => b.semanticValue - a.semanticValue || a.relativeCost - b.relativeCost || a.probeId.localeCompare(b.probeId));
+}
+
+function aggregateCalculation(coordinates, valueAccessor, label, formula) {
+  const terms = coordinates.map((coordinate) => ({
+    semanticType: coordinate.id,
+    code: coordinate.code,
+    weight: coordinate.weight,
+    value: valueAccessor(coordinate),
+    product: round(coordinate.weight * valueAccessor(coordinate))
+  }));
+  const result = terms.reduce((sum, term) => sum + term.product, 0);
+  return {
+    label,
+    formula,
+    terms,
+    substitution: terms.map((term) => `${term.weight}*${term.value}`).join(" + ") || "0",
+    result: round(result)
+  };
 }
 
 export function buildSemanticManifoldProjection(input = {}) {
@@ -240,6 +325,7 @@ export function buildSemanticManifoldProjection(input = {}) {
     ...claimTypes,
     SEMANTIC_TYPES.G8_EVIDENCE
   ]);
+
   const rows = observationRows({
     evidence: input.evidence || [],
     antiwitnesses: input.antiwitnesses || [],
@@ -253,8 +339,10 @@ export function buildSemanticManifoldProjection(input = {}) {
 
   const coordinates = activeTypes.map((id) => {
     const observations = rows.filter((row) => row.semanticType === id);
-    const nominal = posterior(observations, "nominalValue");
-    const corrected = posterior(observations, "correctedValue");
+    const nominalCalc = posteriorBreakdown(observations, "nominalValue");
+    const correctedCalc = posteriorBreakdown(observations, "correctedValue");
+    const nominal = nominalCalc.result;
+    const corrected = correctedCalc.result;
     const prior = previous.get(id);
     const previousP = Number(prior?.pHat ?? prior?.satisfactionEstimate);
     const temporalDelta = Number.isFinite(previousP) ? corrected - previousP : null;
@@ -270,24 +358,69 @@ export function buildSemanticManifoldProjection(input = {}) {
     return {
       id,
       ...SEMANTIC_TYPE_CATALOG[id],
-      weight: Number(weights[id].toFixed(4)),
-      pHat: Number(corrected.toFixed(4)),
-      nominalP: Number(nominal.toFixed(4)),
-      referenceVector: Number((corrected - 1).toFixed(4)),
-      referenceMagnitude: Number((1 - corrected).toFixed(4)),
-      temporalDelta: temporalDelta == null ? null : Number(temporalDelta.toFixed(4)),
+      weight: round(weights[id]),
+      pHat: round(corrected),
+      nominalP: round(nominal),
+      referenceVector: round(corrected - 1),
+      referenceMagnitude: round(1 - corrected),
+      temporalDelta: round(temporalDelta),
       trajectoryDirection: temporalDirection(temporalDelta),
       entropy: {
-        nominal: Number(nominalEntropy.toFixed(4)),
-        corrected: Number(currentEntropy.toFixed(4)),
-        deceptiveWitnessDelta: Number((currentEntropy - nominalEntropy).toFixed(4)),
-        temporalFlux: Number.isFinite(previousEntropy) ? Number((currentEntropy - previousEntropy).toFixed(4)) : null
+        nominal: round(nominalEntropy),
+        corrected: round(currentEntropy),
+        deceptiveWitnessDelta: round(currentEntropy - nominalEntropy),
+        temporalFlux: Number.isFinite(previousEntropy) ? round(currentEntropy - previousEntropy) : null
       },
       risk: {
-        nominal: Number((1 - nominal).toFixed(4)),
-        corrected: Number(currentRisk.toFixed(4)),
-        deceptiveWitnessDelta: Number((currentRisk - (1 - nominal)).toFixed(4)),
-        temporalFlux: Number.isFinite(previousRisk) ? Number((currentRisk - previousRisk).toFixed(4)) : null
+        nominal: round(1 - nominal),
+        corrected: round(currentRisk),
+        deceptiveWitnessDelta: round(currentRisk - (1 - nominal)),
+        temporalFlux: Number.isFinite(previousRisk) ? round(currentRisk - previousRisk) : null
+      },
+      calculations: {
+        satisfactionEstimate: {
+          nominal: nominalCalc,
+          corrected: correctedCalc
+        },
+        referenceDisplacement: {
+          formula: "Delta_i = p_hat_i - p_target_i",
+          target: 1,
+          substitution: `${round(corrected)} - 1`,
+          result: round(corrected - 1)
+        },
+        entropy: {
+          formula: "h(p) = -p*log2(p) - (1-p)*log2(1-p)",
+          nominal: { p: round(nominal), result: round(nominalEntropy) },
+          corrected: { p: round(corrected), result: round(currentEntropy) },
+          deceptiveWitnessDelta: {
+            formula: "DeltaH_DW = h(p_corrected) - h(p_nominal)",
+            substitution: `${round(currentEntropy)} - ${round(nominalEntropy)}`,
+            result: round(currentEntropy - nominalEntropy)
+          }
+        },
+        risk: {
+          formula: "r_i = 1 - p_hat_i",
+          nominal: { substitution: `1 - ${round(nominal)}`, result: round(1 - nominal) },
+          corrected: { substitution: `1 - ${round(corrected)}`, result: round(currentRisk) },
+          deceptiveWitnessDelta: {
+            formula: "DeltaR_DW = r_corrected - r_nominal",
+            substitution: `${round(currentRisk)} - ${round(1 - nominal)}`,
+            result: round(currentRisk - (1 - nominal))
+          }
+        },
+        temporal: Number.isFinite(previousP)
+          ? {
+              formula: "Delta_t p_i = p_i(t1) - p_i(t0)",
+              previous: round(previousP),
+              current: round(corrected),
+              substitution: `${round(corrected)} - ${round(previousP)}`,
+              result: round(temporalDelta),
+              direction: temporalDirection(temporalDelta)
+            }
+          : {
+              formula: "Delta_t p_i = p_i(t1) - p_i(t0)",
+              status: "unavailable-no-prior-receipt"
+            }
       },
       deceptiveMechanisms,
       observations: observations.map((row) => ({
@@ -296,16 +429,43 @@ export function buildSemanticManifoldProjection(input = {}) {
         channel: row.channel,
         role: row.role,
         weight: row.weight,
+        nominalValue: row.nominalValue,
+        correctedValue: row.correctedValue,
         coverageBasis: row.coverageBasis,
         distortions: row.distortions
       }))
     };
   });
 
-  const nominalEntropy = coordinates.reduce((sum, coordinate) => sum + coordinate.weight * coordinate.entropy.nominal, 0);
-  const semanticEntropy = coordinates.reduce((sum, coordinate) => sum + coordinate.weight * coordinate.entropy.corrected, 0);
-  const nominalRisk = coordinates.reduce((sum, coordinate) => sum + coordinate.weight * coordinate.risk.nominal, 0);
-  const semanticRisk = coordinates.reduce((sum, coordinate) => sum + coordinate.weight * coordinate.risk.corrected, 0);
+  const entropyNominalCalc = aggregateCalculation(
+    coordinates,
+    (coordinate) => coordinate.entropy.nominal,
+    "Nominal semantic entropy",
+    "H_S^nominal = Σ_i w_i*h(p_i^nominal)"
+  );
+  const entropyCorrectedCalc = aggregateCalculation(
+    coordinates,
+    (coordinate) => coordinate.entropy.corrected,
+    "Corrected semantic entropy",
+    "H_S = Σ_i w_i*h(p_hat_i)"
+  );
+  const riskNominalCalc = aggregateCalculation(
+    coordinates,
+    (coordinate) => coordinate.risk.nominal,
+    "Nominal semantic risk",
+    "R_S^nominal = Σ_i w_i*(1-p_i^nominal)"
+  );
+  const riskCorrectedCalc = aggregateCalculation(
+    coordinates,
+    (coordinate) => coordinate.risk.corrected,
+    "Corrected semantic risk",
+    "R_S = Σ_i w_i*(1-p_hat_i)"
+  );
+
+  const nominalEntropy = entropyNominalCalc.result;
+  const semanticEntropy = entropyCorrectedCalc.result;
+  const nominalRisk = riskNominalCalc.result;
+  const semanticRisk = riskCorrectedCalc.result;
   const previousEntropy = Number(input.previous?.summary?.semanticEntropy);
   const previousRisk = Number(input.previous?.summary?.semanticRisk);
   const deltaH = Number.isFinite(previousEntropy) ? semanticEntropy - previousEntropy : null;
@@ -317,7 +477,64 @@ export function buildSemanticManifoldProjection(input = {}) {
   const temporalVector = coordinates.every((coordinate) => coordinate.temporalDelta == null)
     ? null
     : Object.fromEntries(coordinates.map((coordinate) => [coordinate.code, coordinate.temporalDelta]));
-  const pressureContext = uniq([...(input.pressures || []), ...(input.riskSignals || [])].map((item) => typeof item === "string" ? item : item?.id));
+  const pressureContext = uniq([...(input.pressures || []), ...(input.riskSignals || [])]
+    .map((item) => typeof item === "string" ? item : item?.id));
+  const firstBiteFrontier = buildProbeFrontier(challenge, coordinates, weights);
+
+  const calculationReceipt = {
+    schema: "ui-iceberg-calculation-receipt-v0.6",
+    precision: 4,
+    coordinateCalculations: coordinates.map((coordinate) => ({
+      semanticType: coordinate.id,
+      code: coordinate.code,
+      weight: coordinate.weight,
+      calculations: coordinate.calculations
+    })),
+    aggregates: {
+      semanticEntropy: {
+        nominal: entropyNominalCalc,
+        corrected: entropyCorrectedCalc,
+        deceptiveWitnessCorrection: {
+          formula: "DeltaH_DW = H_S(corrected) - H_S(nominal)",
+          substitution: `${semanticEntropy} - ${nominalEntropy}`,
+          result: round(deceptionDeltaH)
+        }
+      },
+      semanticRisk: {
+        nominal: riskNominalCalc,
+        corrected: riskCorrectedCalc,
+        deceptiveWitnessCorrection: {
+          formula: "DeltaR_DW = R_S(corrected) - R_S(nominal)",
+          substitution: `${semanticRisk} - ${nominalRisk}`,
+          result: round(deceptionDeltaR)
+        }
+      },
+      temporalFlux: Number.isFinite(deltaH) && Number.isFinite(deltaR)
+        ? {
+            entropy: {
+              formula: "DeltaH_S = H_S(t1) - H_S(t0)",
+              previous: round(previousEntropy),
+              current: semanticEntropy,
+              substitution: `${semanticEntropy} - ${round(previousEntropy)}`,
+              result: round(deltaH)
+            },
+            risk: {
+              formula: "DeltaR_S = R_S(t1) - R_S(t0)",
+              previous: round(previousRisk),
+              current: semanticRisk,
+              substitution: `${semanticRisk} - ${round(previousRisk)}`,
+              result: round(deltaR)
+            },
+            classification: fluxClassification(deltaH, deltaR)
+          }
+        : { status: "unavailable-no-prior-receipt" }
+    },
+    firstBite: firstBiteFrontier.map((candidate) => ({
+      probeId: candidate.probeId,
+      calculation: candidate.calculation
+    })),
+    boundary: "Calculation receipts show exactly how displayed values are produced from the supplied evidence and configured weights. They do not upgrade the authority of the inputs, calibrate defect probability, or create missing tensor/coupling weights."
+  };
 
   return {
     schema: "ui-iceberg-semantic-manifold-v0.6",
@@ -334,13 +551,13 @@ export function buildSemanticManifoldProjection(input = {}) {
     temporalVector,
     coordinates,
     summary: {
-      semanticEntropy: Number(semanticEntropy.toFixed(4)),
-      semanticRisk: Number(semanticRisk.toFixed(4)),
-      nominalSemanticEntropy: Number(nominalEntropy.toFixed(4)),
-      nominalSemanticRisk: Number(nominalRisk.toFixed(4)),
+      semanticEntropy,
+      semanticRisk,
+      nominalSemanticEntropy: nominalEntropy,
+      nominalSemanticRisk: nominalRisk,
       deceptiveWitnessCorrection: {
-        entropyDelta: Number(deceptionDeltaH.toFixed(4)),
-        riskDelta: Number(deceptionDeltaR.toFixed(4)),
+        entropyDelta: round(deceptionDeltaH),
+        riskDelta: round(deceptionDeltaR),
         classification: deceptionDeltaH > EPSILON && deceptionDeltaR > EPSILON
           ? "deceptive-certainty-retracted"
           : Math.abs(deceptionDeltaH) <= EPSILON && Math.abs(deceptionDeltaR) <= EPSILON
@@ -348,15 +565,18 @@ export function buildSemanticManifoldProjection(input = {}) {
             : "mixed-deceptive-correction"
       },
       temporalFlux: {
-        mode: Number.isFinite(deltaH) && Number.isFinite(deltaR) ? "finite-difference-between-receipts" : "unavailable-no-prior-receipt",
-        entropyDelta: Number.isFinite(deltaH) ? Number(deltaH.toFixed(4)) : null,
-        riskDelta: Number.isFinite(deltaR) ? Number(deltaR.toFixed(4)) : null,
+        mode: Number.isFinite(deltaH) && Number.isFinite(deltaR)
+          ? "finite-difference-between-receipts"
+          : "unavailable-no-prior-receipt",
+        entropyDelta: round(deltaH),
+        riskDelta: round(deltaR),
         classification: fluxClassification(deltaH, deltaR)
       }
     },
     pressureContext,
     couplingCandidates: buildCouplings(challenge, activeTypes),
-    firstBiteFrontier: buildProbeFrontier(challenge, coordinates, weights),
+    firstBiteFrontier,
+    calculations: calculationReceipt,
     boundary: "This is an evidence-bounded manifold projection, not a calibrated defect probability. Deceptive-witness correction retracts unsupported positive evidence toward unknown; it never fabricates negative evidence. Coupling candidates are co-activation hypotheses only. No regime metric tensor, residue weight, causal failure mode, monetary cost, or remediation timeline is inferred without separate authority."
   };
 }
