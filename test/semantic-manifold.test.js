@@ -42,7 +42,7 @@ test("claim review exposes a bounded semantic manifold only in internal output",
     evidence: [{ id: "W1", state: "linked-pass", evidenceRisks: ["NETWORK_MOCK"] }]
   });
   assert.equal(publicReview.internal, undefined);
-  assert.doesNotMatch(JSON.stringify(publicReview.userFacing), /G\d+_|semantic manifold|semantic entropy|first bite|admission/i);
+  assert.doesNotMatch(JSON.stringify(publicReview.userFacing), /G\d+_|semantic manifold|semantic entropy|first bite|admission|calculation receipt/i);
 });
 
 test("network-mock deceptive witness retracts certainty on affected semantic types", () => {
@@ -78,6 +78,35 @@ test("explicit typed evidence receives stronger coordinate coverage than claim-l
   assert.ok(g12.observations.some((observation) => observation.coverageBasis === "explicit-evidence-type"));
 });
 
+test("Advanced calculation receipt exposes estimator inputs, substitutions, and results", () => {
+  const manifold = deceptiveReview().internal.semanticManifold;
+  const receipt = manifold.calculations;
+  assert.equal(receipt.schema, "ui-iceberg-calculation-receipt-v0.6");
+  assert.equal(receipt.precision, 4);
+
+  const g12 = receipt.coordinateCalculations.find((item) => item.semanticType === "G12_AUTHORITY");
+  assert.ok(g12);
+  const estimate = g12.calculations.satisfactionEstimate.corrected;
+  assert.match(estimate.formula, /p_hat/);
+  assert.equal(typeof estimate.numerator, "number");
+  assert.equal(typeof estimate.denominator, "number");
+  assert.equal(typeof estimate.substitution, "string");
+  assert.equal(estimate.result, manifold.coordinates.find((item) => item.id === "G12_AUTHORITY").pHat);
+  assert.ok(estimate.terms.some((term) => term.witnessId === "W1"));
+
+  assert.match(receipt.aggregates.semanticEntropy.corrected.formula, /H_S/);
+  assert.equal(receipt.aggregates.semanticEntropy.corrected.result, manifold.summary.semanticEntropy);
+  assert.equal(receipt.aggregates.semanticRisk.corrected.result, manifold.summary.semanticRisk);
+  assert.match(receipt.boundary, /do not upgrade the authority/i);
+});
+
+test("calculation receipt does not fabricate temporal calculations without a prior receipt", () => {
+  const manifold = deceptiveReview().internal.semanticManifold;
+  const g11 = manifold.calculations.coordinateCalculations.find((item) => item.semanticType === "G11_TEMPORAL");
+  assert.equal(g11.calculations.temporal.status, "unavailable-no-prior-receipt");
+  assert.equal(manifold.calculations.aggregates.temporalFlux.status, "unavailable-no-prior-receipt");
+});
+
 test("prior manifold enables temporal direction and finite-difference entropy/risk flux", () => {
   const before = deceptiveReview().internal.semanticManifold;
   const after = reviewClaim({
@@ -103,6 +132,11 @@ test("prior manifold enables temporal direction and finite-difference entropy/ri
   assert.equal(after.summary.temporalFlux.mode, "finite-difference-between-receipts");
   assert.equal(typeof after.summary.temporalFlux.entropyDelta, "number");
   assert.equal(typeof after.summary.temporalFlux.riskDelta, "number");
+
+  const g12Calc = after.calculations.coordinateCalculations.find((item) => item.semanticType === "G12_AUTHORITY");
+  assert.equal(g12Calc.calculations.temporal.result, g12.temporalDelta);
+  assert.equal(after.calculations.aggregates.temporalFlux.entropy.result, after.summary.temporalFlux.entropyDelta);
+  assert.equal(after.calculations.aggregates.temporalFlux.risk.result, after.summary.temporalFlux.riskDelta);
 });
 
 test("couplings remain hypotheses and never invent a metric-tensor weight", () => {
@@ -116,7 +150,7 @@ test("couplings remain hypotheses and never invent a metric-tensor weight", () =
   assert.match(authorityCoupling.boundary, /no metric-tensor weight/i);
 });
 
-test("semantic First Bite frontier is entropy/risk-aware but remains ordinal", () => {
+test("semantic First Bite frontier is entropy/risk-aware and exposes its calculation", () => {
   const manifold = deceptiveReview().internal.semanticManifold;
   assert.ok(manifold.firstBiteFrontier.length > 0);
   const next = manifold.firstBiteFrontier[0];
@@ -124,6 +158,9 @@ test("semantic First Bite frontier is entropy/risk-aware but remains ordinal", (
   assert.ok(next.expectedEntropyCoverage >= 0);
   assert.ok(next.decisionRiskCoverage >= 0);
   assert.match(next.boundary, /not expected defect yield/i);
+  assert.match(next.calculation.formula, /V_probe/);
+  assert.equal(next.calculation.result, next.semanticValue);
+  assert.equal(manifold.calculations.firstBite[0].calculation.result, next.semanticValue);
   assert.deepEqual(manifold.pressureContext.sort(), ["external-redirect", "otp-return"]);
 });
 
@@ -133,6 +170,7 @@ test("assurance receipt preserves manifold state deterministically", () => {
   const b = issueAssuranceReceipt({ project: "fixture", journey: "checkout", claimReview });
   assert.equal(a.receiptId, b.receiptId);
   assert.deepEqual(a.semanticManifold, claimReview.internal.semanticManifold);
+  assert.deepEqual(a.semanticManifold.calculations, claimReview.internal.semanticManifold.calculations);
 });
 
 test("direct manifold API never fabricates temporal direction without prior evidence", () => {
