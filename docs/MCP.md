@@ -1,6 +1,6 @@
 # UI Iceberg MCP
 
-UI Iceberg's MCP server is the executable public interface of the assurance compiler. It exposes bounded planning, evidence reconciliation, admission, and change-reactivation operations to coding agents without promoting implementation signals or candidate evidence into proof.
+UI Iceberg's MCP server is the executable public interface of the assurance compiler. It exposes bounded planning, deceptive-witness inspection, evidence reconciliation, admission, and change-reactivation operations to coding agents without promoting implementation signals or candidate evidence into proof.
 
 ## Architectural role
 
@@ -16,7 +16,11 @@ ICEBERG        compiles scenarios, gaps, evidence state, and change impact
 Playwright / other executors / human probes
                produce evidence
     ↓
-Witness / Antiwitness
+Witness candidate
+    ↓
+Deceptive-witness check
+    ↓
+Witness / Antiwitness / Unknown
     ↓
 Admission + Receipt
     ↓
@@ -27,7 +31,7 @@ The MCP server does not certify UI correctness by itself.
 
 ## Protocol support
 
-v0.3 supports two protocol eras over stdio:
+v0.4 supports two protocol eras over stdio:
 
 - modern MCP `2026-07-28` through `server/discover` and per-request `_meta`,
 - the legacy `2025-06-18` `initialize` handshake for compatibility.
@@ -43,10 +47,11 @@ The Tasks extension is intentionally not advertised yet. Current ICEBERG operati
 | `scan_repository` | Detect candidate journeys, implementation pressures, test stack, evidence risks | A defect exists |
 | `generate_scenarios` | Produce a bounded scenario hypothesis set | The scenarios occur in production |
 | `find_gaps` | Map candidate test evidence and rank missing/partial scenarios | Runtime coverage |
-| `select_first_bite` | Select the next high-value discriminating probe | Defect probability |
+| `check_deceptive_witness` | Determine whether an apparent witness has a claim-blocking evidence-channel distortion | A product defect exists |
+| `select_first_bite` | Select the next high-value discriminating probe, including a distortion probe when it contaminates the top scenario | Defect probability |
 | `generate_test_spec` | Emit a skipped Playwright scaffold | An implemented or passing test |
 | `verify_journey` | Reconcile explicit/runtime Playwright evidence | Human usability or production health |
-| `admit_evidence` | Issue a scoped claim verdict from witness/antiwitness evidence | Stronger claim scopes not separately licensed |
+| `admit_evidence` | Filter strong witnesses for deceptive evidence before issuing a scoped claim verdict | Stronger claim scopes not separately licensed |
 | `reactivation_impact` | Invalidate prior assurance when dependencies/signals change | A regression exists |
 | `issue_receipt` | Create a stable assurance handle and preserve boundaries | New evidence beyond its inputs |
 
@@ -56,7 +61,9 @@ The Tasks extension is intentionally not advertised yet. Current ICEBERG operati
 signal
   → failure-pattern hypothesis
   → scenario
-  → discriminating probe
+  → apparent witness
+  → deceptive-witness check
+  → First Bite / discriminating probe
   → evidence
   → witness / antiwitness
   → scoped admission
@@ -74,6 +81,46 @@ or:
 passing test → journey verified → human outcome verified
 ```
 
+## Deceptive witnesses
+
+`check_deceptive_witness` is claim-aware. A green result can remain useful while licensing a narrower claim than the one a team may infer.
+
+Example:
+
+```text
+linked-pass + NETWORK_MOCK
+```
+
+can support:
+
+```text
+frontend handled the supplied mocked response
+```
+
+without establishing:
+
+```text
+real authority callback semantics
+production authority behavior
+production journey health
+```
+
+The executable v0.4 rule set is intentionally bounded to the repository's current public test-evidence-risk detectors. It does not claim to implement the full 72-item research taxonomy referenced by the PackSpec validation receipt.
+
+Current distortion families include:
+
+- `TEMPORAL_ASSUMPTION`
+- `ACTIONABILITY_BYPASS`
+- `NON_EXECUTION_PRESENTED_AS_COVERAGE`
+- `SUITE_EXCLUSION`
+- `RETRY_LAUNDERING`
+- `AUTHORITY_SUBSTITUTION`
+- `ORACLE_SCOPE_NARROWING`
+- `SEMANTIC_IDENTITY_DRIFT`
+- `ASSERTION_FAILURE_MASKING`
+
+See [DECEPTIVE_WITNESS.md](DECEPTIVE_WITNESS.md).
+
 ## Admission
 
 `admit_evidence` currently recognizes three verdicts:
@@ -88,6 +135,14 @@ Strong contradiction states include `linked-fail`, `runtime-fail`, and `reproduc
 
 `linked-flaky`, `runtime-candidate`, `candidate-covered`, `partial`, `unknown`, and `unverified` preserve uncertainty and do not become PASS.
 
+Before strong support can license the requested scope, v0.4 runs the bounded deceptive-witness check:
+
+- `CLEAN_WITNESS` can license the scope;
+- `WEAKENED_WITNESS` can license the scope when its known distortion does not block that scope;
+- `DECEPTIVE_WITNESS_CANDIDATE` cannot license the blocked scope by itself;
+- a clean independent witness can still license the scope while deceptive witnesses remain explicit;
+- an antiwitness still rejects the scoped claim.
+
 The default claim-license planes are:
 
 - `technical-ui-runtime`
@@ -100,9 +155,19 @@ Admission in one plane does not automatically propagate to another.
 
 ## First Bite
 
-`select_first_bite` ranks supplied scenario gaps using existing ICEBERG priority and repository-pressure logic. It returns one `testNext` plus a few alternatives.
+`select_first_bite` ranks supplied scenario gaps using existing ICEBERG priority and repository-pressure logic. It also accepts optional deceptive-witness inputs.
 
-The ranking is a recommendation heuristic. It is not a posterior defect probability and must not be described as one.
+If a claim-blocking deceptive witness refers to the same scenario as the top gap, the recommendation changes from a generic scenario probe to the distortion-specific probe. Example:
+
+```text
+OTP_INTERRUPT_RETURN is the top gap
++
+linked-pass relies on NETWORK_MOCK
+
+=> PROBE_REAL_AUTHORITY_BOUNDARY
+```
+
+This is a deterministic recommendation heuristic, not a posterior defect probability.
 
 ## Reactivation / TERM
 
@@ -129,6 +194,7 @@ unmapped change = unaffected
 - project and journey,
 - scan,
 - gap map,
+- deceptive-witness audit,
 - Test Next,
 - admission,
 - reactivation state,
@@ -145,11 +211,13 @@ scan_repository
       ↓
 find_gaps
       ↓
+check_deceptive_witness on apparent green support
+      ↓
 select_first_bite
       ↓
-generate_test_spec
+generate_test_spec / implement targeted probe
       ↓
-implement + execute the real probe
+execute the real probe
       ↓
 verify_journey
       ↓
@@ -166,6 +234,7 @@ reactivation_impact
 
 Potential future additions should remain evidence-gated:
 
+- vendor the normative full deceptive-witness taxonomy before claiming coverage beyond the bounded public subset,
 - official TypeScript MCP SDK v2 transport migration,
 - Streamable HTTP with 2026-07-28 routing/header validation,
 - durable Tasks extension for genuinely long-running scans/replays,
