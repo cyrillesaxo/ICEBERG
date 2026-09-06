@@ -43,25 +43,45 @@ function auditMap(admission = {}) {
     .map((audit) => [audit.witnessId, audit]));
 }
 
-function evidenceValue(state, audit, forceAnti = false) {
+function deceptiveTypesForWitness(challenge = {}, witnessId) {
+  return uniq((challenge.deceptionMechanisms || []).flatMap((mechanism) => {
+    if (mechanism.status !== "triggered") return [];
+    if (!(mechanism.triggeredBy || []).some((trigger) => trigger.witnessId === witnessId)) return [];
+    return DECEPTION_MECHANISMS[mechanism.id]?.semanticTypes || [];
+  }));
+}
+
+function evidenceValue(state, audit, semanticType, deceptiveTypes, forceAnti = false) {
   if (forceAnti || ANTI_STATES.has(state)) return { nominal: 0, corrected: 0, role: "antiwitness" };
   if (SUPPORT_STATES.has(state)) {
     if (audit?.classification === "DECEPTIVE_WITNESS_CANDIDATE" || audit?.classification === "NON_WITNESS_OBLIGATION") {
-      return { nominal: 1, corrected: 0.5, role: "support-withheld" };
+      const directlyAffected = deceptiveTypes.includes(semanticType);
+      return directlyAffected
+        ? { nominal: 1, corrected: 0.5, role: "support-withheld-on-type" }
+        : { nominal: 1, corrected: 0.75, role: "support-narrowed-outside-distortion" };
     }
     if (audit?.classification === "WEAKENED_WITNESS") return { nominal: 1, corrected: 0.75, role: "weakened-support" };
     return { nominal: 1, corrected: 1, role: "support" };
   }
-  if (FLAKY_STATES.has(state)) return { nominal: 0.75, corrected: 0.5, role: "flaky-support-withheld" };
+  if (FLAKY_STATES.has(state)) {
+    return semanticType === SEMANTIC_TYPES.G11_TEMPORAL
+      ? { nominal: 0.75, corrected: 0.5, role: "flaky-temporal-support-withheld" }
+      : { nominal: 0.75, corrected: 0.65, role: "flaky-support-narrowed" };
+  }
   if (UNRESOLVED_STATES.has(state) || !state) return { nominal: 0.5, corrected: 0.5, role: "unresolved" };
   return { nominal: 0.5, corrected: 0.5, role: "unresolved" };
 }
 
 function evidenceCoverage(item, claimTypes, activeTypes) {
   const explicit = normalizeTypeList(item.semanticTypes || item.gapTypes || []);
-  if (explicit.length) return explicit.map((id) => ({ id, weight: 1, basis: "explicit-evidence-type" }));
-
   const coverage = [{ id: SEMANTIC_TYPES.G8_EVIDENCE, weight: 1, basis: "evidence-channel" }];
+  if (explicit.length) {
+    for (const id of explicit) {
+      if (id !== SEMANTIC_TYPES.G8_EVIDENCE) coverage.push({ id, weight: 1, basis: "explicit-evidence-type" });
+    }
+    return coverage;
+  }
+
   for (const id of claimTypes) {
     if (id !== SEMANTIC_TYPES.G8_EVIDENCE && activeTypes.includes(id)) {
       coverage.push({ id, weight: 0.5, basis: "claim-level-inference" });
@@ -70,7 +90,7 @@ function evidenceCoverage(item, claimTypes, activeTypes) {
   return coverage;
 }
 
-function observationRows({ evidence = [], antiwitnesses = [], claimTypes, activeTypes, admission }) {
+function observationRows({ evidence = [], antiwitnesses = [], claimTypes, activeTypes, admission, challenge }) {
   const audits = auditMap(admission);
   const rows = [];
   const seen = new Set();
@@ -82,9 +102,10 @@ function observationRows({ evidence = [], antiwitnesses = [], claimTypes, active
     seen.add(key);
     const state = item.state || (forceAnti ? "reproduced-antiwitness" : "unknown");
     const audit = audits.get(id) || null;
-    const value = evidenceValue(state, audit, forceAnti);
+    const deceptiveTypes = deceptiveTypesForWitness(challenge, id);
     for (const coverage of evidenceCoverage(item, claimTypes, activeTypes)) {
       if (!activeTypes.includes(coverage.id)) continue;
+      const value = evidenceValue(state, audit, coverage.id, deceptiveTypes, forceAnti);
       rows.push({
         witnessId: id,
         semanticType: coverage.id,
@@ -224,7 +245,8 @@ export function buildSemanticManifoldProjection(input = {}) {
     antiwitnesses: input.antiwitnesses || [],
     claimTypes,
     activeTypes,
-    admission
+    admission,
+    challenge
   });
   const weights = semanticWeights(activeTypes, input.semanticWeights || claim.semanticWeights || {});
   const previous = previousCoordinateMap(input.previous || {});
@@ -295,7 +317,7 @@ export function buildSemanticManifoldProjection(input = {}) {
   const temporalVector = coordinates.every((coordinate) => coordinate.temporalDelta == null)
     ? null
     : Object.fromEntries(coordinates.map((coordinate) => [coordinate.code, coordinate.temporalDelta]));
-  const pressureContext = uniq((input.pressures || input.riskSignals || []).map((item) => typeof item === "string" ? item : item?.id));
+  const pressureContext = uniq([...(input.pressures || []), ...(input.riskSignals || [])].map((item) => typeof item === "string" ? item : item?.id));
 
   return {
     schema: "ui-iceberg-semantic-manifold-v0.6",
