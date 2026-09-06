@@ -21,7 +21,8 @@
     "url": "https://github.com/cyrillesaxo/ICEBERG/issues"
   },
   "bin": {
-    "ui-iceberg": "packages/cli/bin/ui-iceberg.js"
+    "ui-iceberg": "packages/cli/bin/ui-iceberg.js",
+    "ui-iceberg-assure": "packages/cli/bin/ui-iceberg-semantic.js"
   },
   "exports": {
     ".": "./packages/core/src/index.js",
@@ -30,16 +31,18 @@
     "./failure-patterns": "./packages/scenarios/src/failure-patterns.js",
     "./evidence-risks": "./packages/core/src/test-evidence-risks.js",
     "./prioritize": "./packages/core/src/prioritize.js",
+    "./semantic-assurance": "./packages/core/src/semantic-assurance.js",
     "./runtime": "./packages/runtime/src/index.js",
     "./playwright": "./packages/adapters/playwright/src/index.js",
     "./mcp": "./mcp/server/index.js"
   },
   "scripts": {
     "test": "node --test test",
-    "check": "node --check packages/cli/bin/ui-iceberg.js && node --check packages/core/src/index.js && node --check packages/core/src/test-evidence-risks.js && node --check packages/core/src/prioritize.js && node --check packages/scenarios/src/catalog.js && node --check packages/scenarios/src/journey-archetypes.js && node --check packages/scenarios/src/failure-patterns.js && node --check packages/runtime/src/index.js && node --check packages/adapters/playwright/src/index.js && node --check mcp/server/index.js",
+    "check": "node --check packages/cli/bin/ui-iceberg.js && node --check packages/cli/bin/ui-iceberg-semantic.js && node --check packages/core/src/index.js && node --check packages/core/src/test-evidence-risks.js && node --check packages/core/src/prioritize.js && node --check packages/core/src/semantic-assurance.js && node --check packages/scenarios/src/catalog.js && node --check packages/scenarios/src/journey-archetypes.js && node --check packages/scenarios/src/failure-patterns.js && node --check packages/runtime/src/index.js && node --check packages/adapters/playwright/src/index.js && node --check mcp/server/index.js",
     "mcp": "node mcp/server/index.js",
     "demo": "node packages/cli/bin/ui-iceberg.js scenarios checkout",
     "demo:quickstart": "node packages/cli/bin/ui-iceberg.js gaps checkout examples/quickstart-checkout",
+    "demo:semantic": "node packages/cli/bin/ui-iceberg-semantic.js checkout examples/quickstart-checkout",
     "benchmark:ui006": "node --test benchmarks/false-convergence/UI-006-otp-interruption/tests/checkout.test.js && node packages/cli/bin/ui-iceberg.js gaps checkout benchmarks/false-convergence/UI-006-otp-interruption && node benchmarks/false-convergence/UI-006-otp-interruption/ground-truth.mjs"
   },
   "engines": {
