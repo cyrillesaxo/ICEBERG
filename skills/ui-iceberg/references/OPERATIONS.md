@@ -101,7 +101,7 @@ Preserve these states exactly:
 
 | State | Meaning | Claim license |
 | --- | --- | --- |
-| `linked-pass` | Explicit scenario link + clean runtime pass | The linked test ran and its assertions passed without retry. |
+| `linked-pass` | Explicit scenario link + clean runtime pass | Nominal runtime support; deceptive-witness filtering still applies to the requested claim scope. |
 | `linked-flaky` | Explicit link + retry-dependent pass | The scenario is unstable; do not normalize to PASS. |
 | `linked-fail` | Explicit link + runtime failure | The linked execution failed; inspect assertion/action evidence. |
 | `runtime-candidate` | Executed test appears relevant but lacks explicit scenario link | Runtime evidence exists, but scenario coverage is not established. |
@@ -115,7 +115,7 @@ Start the stdio server from the UI Iceberg repository:
 npm run mcp
 ```
 
-The v0.3 MCP surface exposes nine tools and supports both the legacy 2025 handshake and modern MCP `2026-07-28` `server/discover` discovery.
+The v0.4 MCP surface exposes ten tools and supports both the legacy 2025 handshake and modern MCP `2026-07-28` `server/discover` discovery.
 
 ### Planning and evidence collection
 
@@ -155,6 +155,37 @@ Generates a bounded scenario plan. `journey` is required.
 
 Maps candidate evidence and returns prioritized gaps. Do not treat static candidate mapping as verification.
 
+#### `check_deceptive_witness`
+
+Use this before trusting an apparent green witness when repository/test evidence exposes a risk such as forced action, network mocking, retry policy, visual-only oracle, fixed wait, or ordinal targeting.
+
+```json
+{
+  "claim": {
+    "id": "checkout-otp-return",
+    "scope": "technical-ui-runtime",
+    "statement": "Checkout survives the real OTP interruption and return boundary."
+  },
+  "witness": {
+    "id": "W1",
+    "scenarioId": "OTP_INTERRUPT_RETURN",
+    "state": "linked-pass",
+    "channel": "playwright",
+    "evidenceRisks": ["NETWORK_MOCK"]
+  }
+}
+```
+
+A typical bounded result is:
+
+```text
+classification: DECEPTIVE_WITNESS_CANDIDATE
+distortion: AUTHORITY_SUBSTITUTION
+recommended probe: PROBE_REAL_AUTHORITY_BOUNDARY
+```
+
+This means the evidence channel blocks the requested claim scope. It does **not** mean the product defect is proven.
+
 #### `select_first_bite`
 
 ```json
@@ -163,15 +194,27 @@ Maps candidate evidence and returns prioritized gaps. Do not treat static candid
     {
       "id": "OTP_INTERRUPT_RETURN",
       "priority": "critical",
-      "evidence": { "state": "missing", "score": 0 },
+      "evidence": { "state": "partial", "score": 0.5 },
       "source": "journey-profile"
     }
   ],
-  "riskSignals": ["external-redirect", "browser-persistence"]
+  "riskSignals": ["external-redirect", "browser-persistence"],
+  "deceptiveWitnesses": [
+    {
+      "claim": { "id": "otp-return", "scope": "technical-ui-runtime" },
+      "scenarioId": "OTP_INTERRUPT_RETURN",
+      "witness": {
+        "id": "W1",
+        "scenarioId": "OTP_INTERRUPT_RETURN",
+        "state": "linked-pass",
+        "evidenceRisks": ["NETWORK_MOCK"]
+      }
+    }
+  ]
 }
 ```
 
-Returns the smallest high-value next discriminating scenario. The score is a test-priority heuristic, not defect probability.
+When a claim-blocking deceptive witness contaminates the top scenario, `recommendedNext` becomes the distortion-specific probe rather than blindly accepting the apparent support. The recommendation is a testing heuristic, not defect probability.
 
 #### `generate_test_spec`
 
@@ -214,7 +257,8 @@ Reconciles Playwright runtime evidence with the scenario model. `linked-flaky` s
     {
       "id": "E1",
       "state": "linked-pass",
-      "channel": "playwright"
+      "channel": "playwright",
+      "evidenceRisks": ["NETWORK_MOCK"]
     }
   ],
   "antiwitnesses": []
@@ -222,6 +266,8 @@ Reconciles Playwright runtime evidence with the scenario model. `linked-flaky` s
 ```
 
 Possible verdicts are `ADMITTED_WITH_SCOPE`, `REJECTED`, and `INCONCLUSIVE`.
+
+v0.4 filters strong nominal support through the bounded deceptive-witness classifier before licensing the requested scope. If every strong witness is deceptive for that scope, admission remains `INCONCLUSIVE`. A clean independent witness can still license the scope while the deceptive witness remains explicit in the receipt.
 
 A technical runtime admission does not license cognitive usability, accessibility completeness, production journey health, causal root cause, or business outcome. Candidate evidence and flaky execution remain inconclusive.
 
@@ -252,15 +298,18 @@ Returns scenarios whose prior assurance state should be reactivated. Unmapped ch
 {
   "project": "checkout-app",
   "journey": "checkout",
+  "deceptiveWitnessAudit": {
+    "counts": { "DECEPTIVE_WITNESS_CANDIDATE": 1 }
+  },
   "testNext": { "id": "OTP_INTERRUPT_RETURN" },
-  "admission": { "verdict": "ADMITTED_WITH_SCOPE" },
-  "allowedConclusion": "The linked technical browser scenario passed in the supplied run.",
-  "notEstablished": ["cognitive usability", "production conversion"],
-  "residualUnknowns": ["real-user interruption rate"]
+  "admission": { "verdict": "INCONCLUSIVE" },
+  "allowedConclusion": "The mocked frontend path passed, but the real authority return boundary remains unverified.",
+  "notEstablished": ["production authority behavior", "cognitive usability"],
+  "residualUnknowns": ["real OTP callback continuity"]
 }
 ```
 
-Returns a deterministic `receipt://...` handle and preserves the supplied evidence boundary.
+Returns a deterministic `receipt://...` handle and preserves the supplied evidence boundary, including deceptive-witness state.
 
 ## Recommended MCP sequence
 
@@ -269,9 +318,11 @@ scan_repository
       ↓
 find_gaps
       ↓
+inspect apparent green evidence with check_deceptive_witness
+      ↓
 select_first_bite
       ↓
-generate_test_spec
+generate_test_spec / implement targeted distortion probe
       ↓
 execute probe in the real product/executor
       ↓
@@ -287,6 +338,10 @@ reactivation_impact
 ```
 
 The MCP is an executable assurance interface, not the source of truth by itself. Evidence comes from the repository, runtime executor, controlled probe, or licensed human/task channel.
+
+## Deceptive-witness taxonomy boundary
+
+The PackSpec validation receipt references a larger 72-item research taxonomy. The full normative YAML is not vendored in this repository, so the v0.4 executable classifier intentionally uses only the bounded public subset derived from current test-evidence-risk detectors. Do not claim 72-rule execution until those normative definitions are actually vendored and validated.
 
 ## MCP 2026-07-28 behavior
 
