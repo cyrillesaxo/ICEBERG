@@ -2,12 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { handleRpc, MCP_PROTOCOLS, MCP_TOOLS } from "../mcp/server/index.js";
 
-test("MCP exposes planning, deceptive-witness, verification, admission, reactivation, and receipt tools", () => {
+test("MCP exposes claim review plus lower-level assurance tools", () => {
   const names = MCP_TOOLS.map((tool) => tool.name);
   assert.deepEqual(names, [
     "scan_repository",
     "generate_scenarios",
     "find_gaps",
+    "review_claim",
     "check_deceptive_witness",
     "select_first_bite",
     "generate_test_spec",
@@ -21,13 +22,13 @@ test("MCP exposes planning, deceptive-witness, verification, admission, reactiva
 test("legacy initialize remains compatible", async () => {
   const init = await handleRpc({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: MCP_PROTOCOLS.legacy } });
   assert.equal(init.result.serverInfo.name, "ui-iceberg");
-  assert.equal(init.result.serverInfo.version, "0.4.0");
+  assert.equal(init.result.serverInfo.version, "0.5.0");
   const list = await handleRpc({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
-  assert.equal(list.result.tools.length, 10);
+  assert.equal(list.result.tools.length, 11);
   assert.equal(list.result.resultType, undefined);
 });
 
-test("2026-07-28 server/discover advertises deceptive-witness-first assurance flow", async () => {
+test("2026-07-28 server/discover prefers plain-language claim review", async () => {
   const discover = await handleRpc({
     jsonrpc: "2.0",
     id: "discover-1",
@@ -43,7 +44,7 @@ test("2026-07-28 server/discover advertises deceptive-witness-first assurance fl
   assert.equal(discover.result.resultType, "complete");
   assert.ok(discover.result.supportedVersions.includes("2026-07-28"));
   assert.equal(discover.result._meta["io.modelcontextprotocol/serverInfo"].name, "ui-iceberg");
-  assert.match(discover.result.instructions, /check_deceptive_witness/i);
+  assert.match(discover.result.instructions, /review_claim/i);
   assert.match(discover.result.instructions, /Unknown is not PASS/i);
 });
 
@@ -57,7 +58,7 @@ test("modern tools/list is cacheable and stamped with server identity", async ()
   assert.equal(response.result.resultType, "complete");
   assert.equal(response.result.cacheScope, "public");
   assert.equal(response.result.ttlMs, 300000);
-  assert.equal(response.result.tools.length, 10);
+  assert.equal(response.result.tools.length, 11);
 });
 
 test("unsupported modern protocol revision fails explicitly", async () => {
@@ -80,6 +81,51 @@ test("MCP generate_scenarios returns structured scenario data", async () => {
   assert.equal(response.result.isError, false);
   assert.equal(response.result.structuredContent.scenarios.length, 5);
   assert.ok(response.result.structuredContent.scenarios.some((item) => item.category === "agency"));
+});
+
+test("MCP review_claim returns plain-language result and hides internals by default", async () => {
+  const response = await handleRpc({
+    jsonrpc: "2.0",
+    id: 30,
+    method: "tools/call",
+    params: {
+      name: "review_claim",
+      arguments: {
+        claim: { id: "checkout-otp", statement: "Checkout survives OTP interruption." },
+        evidence: [{
+          id: "W1",
+          state: "linked-pass",
+          channel: "playwright",
+          evidenceRisks: ["NETWORK_MOCK", "VISUAL_ONLY_ORACLE"]
+        }]
+      }
+    }
+  });
+  assert.equal(response.result.isError, false);
+  const result = response.result.structuredContent;
+  assert.equal(result.internal, undefined);
+  assert.equal(result.userFacing.status, "needs-check");
+  assert.ok(result.userFacing.bestNextCheck);
+  const visible = JSON.stringify(result.userFacing);
+  assert.doesNotMatch(visible, /G\d+_|deceptive witness|semantic entropy|first bite|admission|antiwitness|TERM/i);
+});
+
+test("MCP review_claim can expose internal matrix only when explicitly requested", async () => {
+  const response = await handleRpc({
+    jsonrpc: "2.0",
+    id: 32,
+    method: "tools/call",
+    params: {
+      name: "review_claim",
+      arguments: {
+        claim: { id: "checkout-otp", semanticTypes: ["G11", "G12"] },
+        evidence: [{ id: "W1", state: "linked-pass", evidenceRisks: ["NETWORK_MOCK"] }],
+        includeInternal: true
+      }
+    }
+  });
+  assert.equal(response.result.structuredContent.internal.challenge.deceptionMechanisms.length, 5);
+  assert.equal(response.result.structuredContent.internal.challenge.semanticTypes.some((item) => item.id === "G12_AUTHORITY"), true);
 });
 
 test("MCP check_deceptive_witness exposes the evidence distortion and probe", async () => {
